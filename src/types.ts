@@ -1,3 +1,5 @@
+import { ActionProposal } from './domain/campfire/types';
+
 export interface KidProfile {
   name: string;
   age: string;
@@ -36,6 +38,7 @@ export interface ChatMessage {
   imageUri?: string;
   audioUri?: string;
   isSosAlert?: boolean;
+  proposal?: ActionProposal;
 }
 
 export interface PhotoAlbumItem {

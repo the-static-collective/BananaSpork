@@ -46,6 +46,13 @@ export class SupabaseJubileeGateway implements JubileeGateway {
   }
 
   public setCurrentUser(user: JubileeCurrentUser): void {
+    if (
+      this.currentUser.id === user.id &&
+      this.currentUser.name === user.name &&
+      this.currentUser.role === user.role
+    ) {
+      return;
+    }
     this.currentUser = user;
     this.notify();
   }

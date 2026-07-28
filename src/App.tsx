@@ -20,6 +20,18 @@ import {
   PhotoAlbumItem,
   RecipeCard,
 } from './types';
+import { CampfireTab, ActionVerb, ActionProposal } from './domain/campfire/types';
+import { CampfireNavBar } from './domain/campfire/CampfireNavBar';
+import { TodayView } from './domain/campfire/TodayView';
+import { BasketView } from './domain/campfire/BasketView';
+import { GrowView } from './domain/campfire/GrowView';
+import { RememberView } from './domain/campfire/RememberView';
+import { UniversalComposerModal } from './domain/campfire/UniversalComposerModal';
+import {
+  createActionProposal,
+  confirmActionProposal,
+  getLocalProposals,
+} from './domain/campfire/campfireService';
 
 const STORAGE_KEY_PROFILE = 'bananagram_kid_profile_v1';
 const STORAGE_KEY_MESSAGES = 'bananagram_messages_v1';
@@ -36,6 +48,11 @@ const DEFAULT_PROFILE: KidProfile = {
 };
 
 export default function App() {
+  // Navigation Shell State (Default signed-in view = 'today')
+  const [activeTab, setActiveTab] = useState<CampfireTab>('today');
+  const [universalComposerOpen, setUniversalComposerOpen] = useState<boolean>(false);
+  const [proposals, setProposals] = useState<ActionProposal[]>(() => getLocalProposals());
+
   const [channels, setChannels] = useState<ChatChannel[]>(INITIAL_CHANNELS);
   const [activeChannelId, setActiveChannelId] = useState<string>('bananabot');
 
@@ -60,6 +77,14 @@ export default function App() {
 
   // Jubilee Domain Gateway Connection
   const currentUserName = 'Local Member (You)';
+  const currentUserObj = React.useMemo(
+    () => ({
+      id: 'usr-local',
+      name: currentUserName,
+      role: 'Member' as const,
+    }),
+    [currentUserName]
+  );
   const {
     runtimeMode,
     offers,
@@ -69,11 +94,7 @@ export default function App() {
     addSeed,
     pledgeNeed,
     confirmFulfillment,
-  } = useJubilee({
-    id: 'usr-local',
-    name: currentUserName,
-    role: 'Member',
-  });
+  } = useJubilee(currentUserObj);
 
   // UI Modals
   const [sidebarOpen, setSidebarOpen] = useState<boolean>(false);
@@ -122,7 +143,6 @@ export default function App() {
       };
     });
 
-    // Update channel list last message summary
     setChannels((prev) =>
       prev.map((c) =>
         c.id === channelId
@@ -136,8 +156,106 @@ export default function App() {
     );
   };
 
-  // Main Send Message Handler with Telegram Bot Commands / Jubilee triggers
-  const handleSendMessage = async (text: string, imageUri?: string) => {
+  // Create Universal Action Proposal (Message-to-Action)
+  const handleCreateProposal = async (
+    verb: ActionVerb,
+    title: string,
+    description: string,
+    details?: { category?: any; dateOrTime?: string }
+  ) => {
+    const prop = createActionProposal(
+      verb,
+      title,
+      currentUserName,
+      description,
+      details
+    );
+
+    setProposals(getLocalProposals());
+
+    // Post proposal card into Porch active chat channel
+    const timeNow = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const msg: ChatMessage = {
+      id: `prop-msg-${Date.now()}`,
+      sender: 'user',
+      senderName: currentUserName,
+      text: `Proposal created: ${verb.toUpperCase()} "${title}"`,
+      timestamp: timeNow,
+      proposal: prop,
+    };
+
+    addMessageToChannel(activeChannelId, msg);
+  };
+
+  // Review & Confirm Action Proposal
+  const handleConfirmProposal = async (proposalId: string) => {
+    const confirmed = confirmActionProposal(proposalId);
+    if (!confirmed) return;
+
+    setProposals(getLocalProposals());
+
+    // Execute domain side effects depending on verb
+    if (confirmed.verb === 'need') {
+      await addSeed({
+        title: confirmed.title,
+        stage: 'Seed',
+        authorName: currentUserName,
+        description: confirmed.description,
+        needs: [
+          {
+            id: `n-${Date.now()}`,
+            title: confirmed.title,
+            category: confirmed.details?.category || 'Care',
+            status: 'open',
+          },
+        ],
+        makesPossible: ['Household care'],
+        graftsCount: 1,
+        harvestsCount: 0,
+      });
+    } else if (confirmed.verb === 'offer') {
+      await addOffer({
+        title: confirmed.title,
+        category: confirmed.details?.category || 'Care',
+        contributorName: currentUserName,
+        availability: 'Available now',
+        boundary: 'Household / Neighborhood circle',
+        icon: '🌱',
+      });
+    } else if (confirmed.verb === 'remember') {
+      await addOffer({
+        title: `Remember: ${confirmed.title}`,
+        category: 'Skills',
+        contributorName: currentUserName,
+        availability: 'Recorded',
+        boundary: 'Memory',
+        icon: '📜',
+      });
+    }
+
+    // Update messages containing this proposal to show confirmed status
+    setMessagesByChannel((prev) => {
+      const updated: Record<string, ChatMessage[]> = {};
+      Object.keys(prev).forEach((chId) => {
+        updated[chId] = prev[chId].map((m) => {
+          if (m.proposal && m.proposal.id === proposalId) {
+            return {
+              ...m,
+              proposal: {
+                ...m.proposal,
+                status: 'confirmed',
+              },
+            };
+          }
+          return m;
+        });
+      });
+      return updated;
+    });
+  };
+
+  // Main Send Message Handler
+  const handleSendMessage = async (text: string, imageUri?: string, proposal?: ActionProposal) => {
     const timeNow = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
     const userMsg: ChatMessage = {
@@ -146,128 +264,35 @@ export default function App() {
       text,
       timestamp: timeNow,
       imageUri,
+      proposal,
       status: 'sent',
     };
 
     addMessageToChannel(activeChannelId, userMsg);
 
-    // Inline Command Triggers for Jubilee Proof of Participation
-    if (text.startsWith('/offer ')) {
-      const offerText = text.replace('/offer ', '').trim();
-      const res = await addOffer({
-        title: offerText,
-        category: 'Care',
-        contributorName: currentUserName,
-        availability: 'Immediate',
-        boundary: 'First Campfire local radius',
-        icon: '🌱',
-      });
-
-      const sysReply: ChatMessage = {
-        id: `sys-offer-${Date.now()}`,
-        sender: 'bot',
-        senderName: 'Jubilee Bot 🤖',
-        text: res.success
-          ? `🌱 **Offer Saved to Shared Basket**: "${offerText}"\n\nYour offer is now active in the neighborhood basket! (${runtimeMode === 'shared_campfire' ? 'Shared Campfire' : 'This-Device Demo'})`
-          : `⚠️ **Offer Error**: ${res.error}`,
-        timestamp: timeNow,
-      };
-      addMessageToChannel(activeChannelId, sysReply);
-      return;
+    if (proposal) {
+      setProposals(getLocalProposals());
     }
 
-    if (text.startsWith('/need ')) {
-      const needText = text.replace('/need ', '').trim();
-      const res = await addSeed({
-        title: needText,
-        stage: 'Seed',
-        authorName: currentUserName,
-        description: `Community need created via ${activeChannel.name}`,
-        needs: [{ id: `n-${Date.now()}`, title: needText, category: 'Tools', status: 'open' }],
-        makesPossible: ['Enhanced neighborhood resilience'],
-        graftsCount: 1,
-        harvestsCount: 0,
-      });
-
-      // Check matching basket offers in current state
-      const matchingOffers = offers.filter(
-        (off) =>
-          off.title.toLowerCase().includes(needText.toLowerCase()) ||
-          needText.toLowerCase().includes(off.category.toLowerCase())
-      );
-
-      const matchNotice =
-        matchingOffers.length > 0
-          ? `\n\n🔍 **Matching Shared Basket Offers Found**:\n${matchingOffers
-              .map((o) => `• ${o.icon} ${o.title} (${o.contributorName})`)
-              .join('\n')}`
-          : '\n\nNo exact basket match found yet. Notified local neighborhood circle!';
-
-      const sysReply: ChatMessage = {
-        id: `sys-need-${Date.now()}`,
-        sender: 'bot',
-        senderName: 'Jubilee Bot 🤖',
-        text: res.success
-          ? `🌿 **Possibility Seed Created**: "${needText}"${matchNotice}\n\nCheck the **Jubilee Participation Hub** to manage pledges and grafts.`
-          : `⚠️ **Seed Error**: ${res.error}`,
-        timestamp: timeNow,
-      };
-      addMessageToChannel(activeChannelId, sysReply);
-      return;
-    }
-
-    if (text.startsWith('/remember ')) {
-      const memText = text.replace('/remember ', '').trim();
-      const res = await addOffer({
-        title: `Remember: ${memText}`,
-        category: 'Skills',
-        contributorName: currentUserName,
-        availability: 'Recorded',
-        boundary: 'Memory',
-        icon: '📜',
-      });
-
-      const sysReply: ChatMessage = {
-        id: `sys-rem-${Date.now()}`,
-        sender: 'bot',
-        senderName: 'Jubilee Bot 🤖',
-        text: res.success
-          ? `📜 **Participation Recorded**: "${memText}"\n\nRecorded in ${runtimeMode === 'shared_campfire' ? 'Shared Campfire Witness Ledger' : 'This-Device Demo Activity Log'}.`
-          : `⚠️ **Record Error**: ${res.error}`,
-        timestamp: timeNow,
-      };
-      addMessageToChannel(activeChannelId, sysReply);
-      return;
-    }
-
-    // If active channel is BananaBot, invoke backend API
-    if (activeChannelId === 'bananabot') {
+    // AI Assistant response for BananaBot
+    if (activeChannelId === 'bananabot' && !proposal) {
       try {
         let botText = '';
         const currentHistory = (messagesByChannel['bananabot'] || []).slice(-6);
 
         if (imageUri) {
-          // Multimodal image analysis
           const res = await fetch('/api/analyze-image', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              imageBase64: imageUri,
-              kidProfile,
-            }),
+            body: JSON.stringify({ imageBase64: imageUri, kidProfile }),
           });
           const data = await res.json();
           botText = data.analysis || "I see some great ingredients! Let's make something toddler-approved!";
         } else {
-          // Standard text chat
           const res = await fetch('/api/chat', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              message: text,
-              history: currentHistory,
-              kidProfile,
-            }),
+            body: JSON.stringify({ message: text, history: currentHistory, kidProfile }),
           });
           const data = await res.json();
           botText = data.reply || data.fallbackReply;
@@ -288,7 +313,7 @@ export default function App() {
           id: `bot-err-${Date.now()}`,
           sender: 'bot',
           senderName: 'BananaBot 🍌',
-          text: "🍌 *Quick Rescue Tip*: When in doubt, a 'Deconstructed Snack Plate' with crackers, cheese coins, and banana slices is 100% toddler safe! You're doing an amazing job, mom!",
+          text: "🍌 *Quick Rescue Tip*: When in doubt, a 'Deconstructed Snack Plate' with crackers, cheese coins, and banana slices is 100% toddler safe!",
           timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         };
         addMessageToChannel('bananabot', botMsg);
@@ -296,7 +321,6 @@ export default function App() {
     }
   };
 
-  // Send recipe directly to Co-Parent / Partner chat
   const handleShareToPartner = (text: string, recipeCard?: RecipeCard) => {
     const timeNow = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
@@ -310,9 +334,9 @@ export default function App() {
 
     addMessageToChannel('partner', shareMsg);
     setActiveChannelId('partner');
+    setActiveTab('porch');
   };
 
-  // Send recipe card generated from Pantry Rescue Mini-App into active thread
   const handleSendRecipeFromApp = (recipeCard: RecipeCard) => {
     const timeNow = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
@@ -326,9 +350,9 @@ export default function App() {
     };
 
     addMessageToChannel(activeChannelId, msg);
+    setActiveTab('porch');
   };
 
-  // Photo Album handlers
   const handleAddPhotoToChannel = (photo: PhotoAlbumItem) => {
     setChannels((prev) =>
       prev.map((c) =>
@@ -354,9 +378,9 @@ export default function App() {
     };
 
     addMessageToChannel(activeChannelId, msg);
+    setActiveTab('porch');
   };
 
-  // Group Management Handlers
   const handleUpdateGroup = (updatedChannel: ChatChannel) => {
     setChannels((prev) => prev.map((c) => (c.id === updatedChannel.id ? updatedChannel : c)));
   };
@@ -375,58 +399,130 @@ export default function App() {
     }
   };
 
+  const unreadChatTotal = channels.reduce((acc, c) => acc + (c.unreadCount || 0), 0);
+
   return (
-    <div className="flex h-screen w-screen overflow-hidden bg-amber-50 font-sans antialiased selection:bg-amber-300">
-      {/* Sidebar Navigation */}
-      <Sidebar
-        channels={channels}
-        activeChannelId={activeChannelId}
-        onSelectChannel={(id) => setActiveChannelId(id)}
-        isOpen={sidebarOpen}
-        onClose={() => setSidebarOpen(false)}
-        onOpenPantryApp={() => setPantryAppOpen(true)}
-        onOpenKidProfile={() => setKidProfileModalOpen(true)}
-        onOpenGroupManage={() => setGroupManageOpen(true)}
-        onOpenPhotoAlbum={() => setPhotoAlbumOpen(true)}
-        onOpenJubileeHub={() => setJubileeHubOpen(true)}
+    <div className="flex flex-col h-screen w-screen overflow-hidden bg-amber-50 font-sans antialiased selection:bg-amber-300">
+      {/* Campfire Header */}
+      <Header
+        activeChannelName={activeChannel.name}
+        activeChannelAvatar={activeChannel.avatar}
+        activeChannelSubtitle={activeChannel.subtitle}
         kidProfile={kidProfile}
         runtimeMode={runtimeMode}
+        onOpenSos={() => setSosModalOpen(true)}
+        onOpenPantryApp={() => setPantryAppOpen(true)}
+        onOpenKidProfile={() => setKidProfileModalOpen(true)}
+        onOpenPhotoAlbum={() => setPhotoAlbumOpen(true)}
+        onOpenGroupManage={() => setGroupManageOpen(true)}
+        onOpenJubileeHub={() => setJubileeHubOpen(true)}
+        onOpenOnboarding={() => setOnboardingOpen(true)}
+        onToggleSidebar={() => setSidebarOpen(!sidebarOpen)}
+        audioMuted={audioMuted}
+        onToggleAudioMute={() => setAudioMuted(!audioMuted)}
       />
 
-      {/* Main App Canvas */}
-      <div className="flex-1 flex flex-col min-w-0 h-full">
-        <Header
-          activeChannelName={activeChannel.name}
-          activeChannelAvatar={activeChannel.avatar}
-          activeChannelSubtitle={activeChannel.subtitle}
-          kidProfile={kidProfile}
-          runtimeMode={runtimeMode}
-          onOpenSos={() => setSosModalOpen(true)}
-          onOpenPantryApp={() => setPantryAppOpen(true)}
-          onOpenKidProfile={() => setKidProfileModalOpen(true)}
-          onOpenPhotoAlbum={() => setPhotoAlbumOpen(true)}
-          onOpenGroupManage={() => setGroupManageOpen(true)}
-          onOpenJubileeHub={() => setJubileeHubOpen(true)}
-          onOpenOnboarding={() => setOnboardingOpen(true)}
-          onToggleSidebar={() => setSidebarOpen(!sidebarOpen)}
-          audioMuted={audioMuted}
-          onToggleAudioMute={() => setAudioMuted(!audioMuted)}
-        />
+      {/* Campfire Household Navigation Bar */}
+      <CampfireNavBar
+        activeTab={activeTab}
+        onTabChange={(tab) => setActiveTab(tab)}
+        onOpenUniversalComposer={() => setUniversalComposerOpen(true)}
+        unreadChatCount={unreadChatTotal}
+      />
 
-        <ChatView
-          channel={activeChannel}
-          messages={activeMessages}
-          onSendMessage={handleSendMessage}
-          onOpenPantryApp={() => setPantryAppOpen(true)}
-          onOpenSos={() => setSosModalOpen(true)}
-          onOpenPhotoAlbum={() => setPhotoAlbumOpen(true)}
-          onOpenGroupManage={() => setGroupManageOpen(true)}
-          onOpenJubileeHub={() => setJubileeHubOpen(true)}
-          onShareToPartner={handleShareToPartner}
-          kidProfile={kidProfile}
-          audioMuted={audioMuted}
-        />
+      {/* Primary Tab Views */}
+      <div className="flex-1 flex overflow-hidden relative">
+        {/* TAB 1: TODAY (Default Signed-In View) */}
+        {activeTab === 'today' && (
+          <TodayView
+            seeds={seeds}
+            offers={offers}
+            receipts={receipts}
+            kidProfile={kidProfile}
+            proposals={proposals}
+            runtimeMode={runtimeMode}
+            onPledgeNeed={(seedId, needId, pledgedBy) => pledgeNeed(seedId, needId, pledgedBy)}
+            onConfirmFulfillment={(seedId, needId) => confirmFulfillment(seedId, needId)}
+            onConfirmProposal={handleConfirmProposal}
+            onOpenPantryRescue={() => setPantryAppOpen(true)}
+            onOpenUniversalComposer={() => setUniversalComposerOpen(true)}
+            onNavigateToTab={(tab) => setActiveTab(tab)}
+          />
+        )}
+
+        {/* TAB 2: PORCH (Conversation Shell / Chat) */}
+        {activeTab === 'porch' && (
+          <div className="flex-1 flex w-full h-full overflow-hidden">
+            <Sidebar
+              channels={channels}
+              activeChannelId={activeChannelId}
+              onSelectChannel={(id) => setActiveChannelId(id)}
+              isOpen={sidebarOpen}
+              onClose={() => setSidebarOpen(false)}
+              onOpenPantryApp={() => setPantryAppOpen(true)}
+              onOpenKidProfile={() => setKidProfileModalOpen(true)}
+              onOpenGroupManage={() => setGroupManageOpen(true)}
+              onOpenPhotoAlbum={() => setPhotoAlbumOpen(true)}
+              onOpenJubileeHub={() => setJubileeHubOpen(true)}
+              kidProfile={kidProfile}
+              runtimeMode={runtimeMode}
+            />
+
+            <ChatView
+              channel={activeChannel}
+              messages={activeMessages}
+              onSendMessage={handleSendMessage}
+              onConfirmProposal={handleConfirmProposal}
+              onOpenPantryApp={() => setPantryAppOpen(true)}
+              onOpenSos={() => setSosModalOpen(true)}
+              onOpenPhotoAlbum={() => setPhotoAlbumOpen(true)}
+              onOpenGroupManage={() => setGroupManageOpen(true)}
+              onOpenJubileeHub={() => setJubileeHubOpen(true)}
+              onShareToPartner={handleShareToPartner}
+              kidProfile={kidProfile}
+              audioMuted={audioMuted}
+            />
+          </div>
+        )}
+
+        {/* TAB 3: BASKET */}
+        {activeTab === 'basket' && (
+          <BasketView
+            offers={offers}
+            seeds={seeds}
+            onOpenUniversalComposer={() => setUniversalComposerOpen(true)}
+            onPledgeNeed={(seedId, needId, pledgedBy) => pledgeNeed(seedId, needId, pledgedBy)}
+          />
+        )}
+
+        {/* TAB 4: GROW */}
+        {activeTab === 'grow' && (
+          <GrowView
+            seeds={seeds}
+            onOpenUniversalComposer={() => setUniversalComposerOpen(true)}
+            onPledgeNeed={(seedId, needId, pledgedBy) => pledgeNeed(seedId, needId, pledgedBy)}
+            onConfirmFulfillment={(seedId, needId) => confirmFulfillment(seedId, needId)}
+          />
+        )}
+
+        {/* TAB 5: REMEMBER */}
+        {activeTab === 'remember' && (
+          <RememberView
+            receipts={receipts}
+            photos={activeChannel.photos || []}
+            onOpenUniversalComposer={() => setUniversalComposerOpen(true)}
+            onOpenPhotoAlbum={() => setPhotoAlbumOpen(true)}
+            onOpenJubileeHub={() => setJubileeHubOpen(true)}
+          />
+        )}
       </div>
+
+      {/* Universal Create Composer Modal */}
+      <UniversalComposerModal
+        isOpen={universalComposerOpen}
+        onClose={() => setUniversalComposerOpen(false)}
+        onSubmitProposal={handleCreateProposal}
+      />
 
       {/* Mini-Apps & Overlays */}
       <OnboardingModal
@@ -493,5 +589,3 @@ export default function App() {
     </div>
   );
 }
-
-

@@ -19,7 +19,7 @@ export function useJubilee(currentUser?: JubileeCurrentUser) {
     if (currentUser) {
       gateway.setCurrentUser(currentUser);
     }
-  }, [currentUser, gateway]);
+  }, [currentUser?.id, currentUser?.name, currentUser?.role, gateway]);
 
   const addOffer = useCallback(
     async (offer: Omit<BasketOffer, 'id' | 'timestamp'>): Promise<CommandResult<BasketOffer>> => {

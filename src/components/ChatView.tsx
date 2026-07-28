@@ -18,11 +18,14 @@ import {
 } from 'lucide-react';
 import { ChatChannel, ChatMessage, KidProfile, RecipeCard } from '../types';
 import { DonkeyModal } from '../domain/donkey/DonkeyModal';
+import { parseMessageCommandToProposal } from '../domain/campfire/campfireService';
+import { ActionProposal } from '../domain/campfire/types';
 
 interface ChatViewProps {
   channel: ChatChannel;
   messages: ChatMessage[];
-  onSendMessage: (text: string, imageUri?: string) => void;
+  onSendMessage: (text: string, imageUri?: string, proposal?: ActionProposal) => void;
+  onConfirmProposal?: (proposalId: string) => void;
   onOpenPantryApp: () => void;
   onOpenSos: () => void;
   onOpenPhotoAlbum?: () => void;
@@ -37,6 +40,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
   channel,
   messages,
   onSendMessage,
+  onConfirmProposal,
   onOpenPantryApp,
   onOpenSos,
   onOpenPhotoAlbum,
@@ -145,7 +149,23 @@ export const ChatView: React.FC<ChatViewProps> = ({
 
   const handleSend = () => {
     if (!inputText.trim() && !selectedImage) return;
-    onSendMessage(inputText.trim(), selectedImage || undefined);
+
+    const trimmed = inputText.trim();
+    if (trimmed.startsWith('/')) {
+      const proposal = parseMessageCommandToProposal(trimmed, 'You');
+      if (proposal) {
+        onSendMessage(
+          `Proposal: ${proposal.verb.toUpperCase()} "${proposal.title}"`,
+          selectedImage || undefined,
+          proposal
+        );
+        setInputText('');
+        setSelectedImage(null);
+        return;
+      }
+    }
+
+    onSendMessage(trimmed, selectedImage || undefined);
     setInputText('');
     setSelectedImage(null);
   };
@@ -211,6 +231,46 @@ export const ChatView: React.FC<ChatViewProps> = ({
                 <div className="whitespace-pre-wrap leading-relaxed font-normal">
                   {msg.text}
                 </div>
+
+                {/* Proposal Card if present */}
+                {msg.proposal && (
+                  <div className="mt-3 bg-amber-50/95 border border-amber-300 rounded-xl p-3 text-amber-950 shadow-xs space-y-2">
+                    <div className="flex items-center justify-between border-b border-amber-200 pb-1.5">
+                      <span className="text-[10px] font-extrabold bg-amber-200 text-amber-900 px-2 py-0.5 rounded-full uppercase tracking-wider">
+                        {msg.proposal.verb} Proposal
+                      </span>
+                      <span
+                        className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                          msg.proposal.status === 'confirmed'
+                            ? 'bg-emerald-200 text-emerald-900'
+                            : 'bg-amber-200 text-amber-900'
+                        }`}
+                      >
+                        {msg.proposal.status === 'confirmed' ? '✅ Confirmed' : 'Awaiting Review'}
+                      </span>
+                    </div>
+
+                    <div>
+                      <h4 className="font-extrabold text-amber-950 text-sm">{msg.proposal.title}</h4>
+                      <p className="text-[11px] text-amber-800 mt-0.5">{msg.proposal.description}</p>
+                    </div>
+
+                    {msg.proposal.nonAuthoritative && (
+                      <div className="text-[10px] text-amber-800 italic bg-amber-100/90 p-1.5 rounded-lg border border-amber-200">
+                        [Non-authoritative Household Proposal]
+                      </div>
+                    )}
+
+                    {msg.proposal.status === 'proposed' && onConfirmProposal && (
+                      <button
+                        onClick={() => onConfirmProposal(msg.proposal!.id)}
+                        className="w-full mt-2 py-2 px-3 rounded-xl bg-amber-900 hover:bg-amber-950 text-amber-50 font-extrabold text-xs transition flex items-center justify-center space-x-1.5 cursor-pointer min-h-[44px]"
+                      >
+                        <span>Review & Confirm</span>
+                      </button>
+                    )}
+                  </div>
+                )}
 
                 {/* Recipe Card Component if present */}
                 {msg.recipeCard && (
