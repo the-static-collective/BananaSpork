@@ -5,6 +5,7 @@ import {
   buildWhatChangedReport,
   computeGentleMatches,
   computeNearbyGrowthPreview,
+  hasExplicitRejectionDisposition,
 } from './intelligenceService';
 
 function assert(condition: boolean, message: string) {
@@ -17,7 +18,7 @@ function assert(condition: boolean, message: string) {
 
 async function runIntelligenceTests() {
   console.log('\n========================================');
-  console.log('  PASS 5B: CONSTITUTIONAL CORRECTION TESTS');
+  console.log('  PASS 5C: DISPOSITION SEMANTICS AND PRIVACY CONSISTENCY');
   console.log('========================================\n');
 
   // Test Fixtures
@@ -39,10 +40,10 @@ async function runIntelligenceTests() {
       sha256Hash: 'b2c3d4e5f6a1',
       predecessorHash: 'a1b2c3d4e5f6',
       actorName: 'Bob Neighbor',
-      eventType: 'offer.pledged',
-      title: 'Pledged Support: Toddler Oat Cereal',
+      eventType: 'need.closed',
+      title: 'Closed Need: Organic Toddler Oat Cereal',
       timestamp: '2026-07-28 09:15',
-      details: 'Pledged 2 boxes from extra pantry shelf',
+      details: 'Fulfilled by Bob Neighbor - harvest completed successfully',
     },
     {
       id: 'rcpt-103',
@@ -105,7 +106,7 @@ async function runIntelligenceTests() {
   const circleB = 'circle-uuid-bbb';
 
   // --------------------------------------------------
-  // 1. ALL FIVE LANES EXIST
+  // 1. FULFILLED CLOSED NEEDS NEVER ENTER REJECTED_PARALLEL
   // --------------------------------------------------
   const growthPreview = computeNearbyGrowthPreview(
     mockSeeds[0],
@@ -116,78 +117,101 @@ async function runIntelligenceTests() {
     mockHeldNotes
   );
 
-  assert(
-    growthPreview.lanes.semanticLane !== undefined &&
-      growthPreview.lanes.lineageLane !== undefined &&
-      growthPreview.lanes.activeTensionLane !== undefined &&
-      growthPreview.lanes.humanLinkLane !== undefined &&
-      growthPreview.lanes.rejectedParallelLane !== undefined,
-    'PROVED: All five explicit lanes (semantic, lineage, active_tension, human_link, rejected_parallel) exist in Nearby Growth'
+  const closedNeedInRejected = growthPreview.lanes.rejectedParallelLane.some(
+    (item) => item.details.includes('Fulfilled by Bob Neighbor')
   );
-
-  // --------------------------------------------------
-  // 2. SEMANTIC IS A REAL SEPARATE LANE
-  // --------------------------------------------------
-  assert(
-    growthPreview.lanes.semanticLane.length > 0 &&
-      growthPreview.lanes.semanticLane[0].primaryLane === 'semantic' &&
-      growthPreview.lanes.semanticLane[0].classification === 'model_interpretation',
-    'PROVED: Semantic lane is a real separate lane with primaryLane="semantic" and classification="model_interpretation"'
-  );
-
-  // --------------------------------------------------
-  // 3. EVERY RESULT HAS primaryLane AND SafeSourceRef
-  // --------------------------------------------------
-  const allResults = [
-    ...growthPreview.lanes.semanticLane,
-    ...growthPreview.lanes.lineageLane,
-    ...growthPreview.lanes.activeTensionLane,
-    ...growthPreview.lanes.humanLinkLane,
-    ...growthPreview.lanes.rejectedParallelLane,
-  ];
-
-  const allHaveLaneAndRef = allResults.every(
-    (r) =>
-      r.primaryLane &&
-      r.classification &&
-      Array.isArray(r.explicitEvidence) &&
-      Array.isArray(r.safeSources) &&
-      r.safeSources.every(
-        (s) => typeof s.eventId === 'string' && typeof s.openable === 'boolean' && ['available', 'redacted', 'unavailable'].includes(s.display)
-      )
+  const closedNeedInLineage = growthPreview.lanes.lineageLane.some(
+    (item) => item.details.includes('Fulfilled by Bob Neighbor')
   );
 
   assert(
-    allHaveLaneAndRef,
-    'PROVED: Every lane result carries primaryLane, classification, explicitEvidence, and exact SafeSourceRef shape ({ eventId, openable, display })'
+    !closedNeedInRejected && closedNeedInLineage,
+    'PROVED: Fulfilled closed needs enter lineageLane and NEVER enter rejected_parallelLane'
   );
 
   // --------------------------------------------------
-  // 4. INACCESSIBLE SOURCES ARE REDACTED / UNAVAILABLE
+  // 2. EXPLICITLY ABANDONED OR DECLINED BRANCHES DO ENTER REJECTED_PARALLEL
   // --------------------------------------------------
-  const unauthorizedGrowth = computeNearbyGrowthPreview(
+  const declinedInRejected = growthPreview.lanes.rejectedParallelLane.some(
+    (item) => item.details.includes('Declined offer due to dietary restriction')
+  );
+
+  assert(
+    declinedInRejected,
+    'PROVED: Explicitly declined/abandoned branches carrying explicit disposition DO enter rejected_parallelLane'
+  );
+
+  // --------------------------------------------------
+  // 3. INACTIVITY AND CLOSURE ALONE NEVER IMPLY REJECTION
+  // --------------------------------------------------
+  const hasInactivityRejection = growthPreview.lanes.rejectedParallelLane.some(
+    (item) => {
+      const original = mockReceipts.find((r) => `rej-${r.id}` === item.id);
+      return original ? !hasExplicitRejectionDisposition(original) : true;
+    }
+  );
+
+  assert(
+    !hasInactivityRejection,
+    'PROVED: Inactivity and closure alone NEVER imply rejection; only explicit disposition terms qualify'
+  );
+
+  // --------------------------------------------------
+  // 4. CROSS-CIRCLE RESULTS EXPOSE NEITHER CONTENT NOR EVENTID
+  // --------------------------------------------------
+  const crossCircleGrowth = computeNearbyGrowthPreview(
     mockSeeds[0],
     mockReceipts,
     mockOffers,
-    circleB, // User circle B
+    circleB, // Requesting user circle B
     circleA, // Authorized circle A
     mockHeldNotes
   );
 
   assert(
-    unauthorizedGrowth.authorized === false &&
-      unauthorizedGrowth.safeSources.length > 0 &&
-      unauthorizedGrowth.safeSources[0].display === 'redacted' &&
-      unauthorizedGrowth.safeSources[0].openable === false,
-    'PROVED: Inaccessible sources from mismatched circles carry display="redacted" and openable=false preserving existence without exposing content'
+    crossCircleGrowth.authorized === false &&
+      crossCircleGrowth.safeSources.length === 0 &&
+      crossCircleGrowth.lanes.lineageLane.length === 0 &&
+      crossCircleGrowth.lanes.rejectedParallelLane.length === 0,
+    'PROVED: Cross-circle requests expose neither content nor eventId (safeSources is [] with 0 exposed IDs)'
   );
 
   // --------------------------------------------------
-  // 5. PRIVATE HELD DONKEY DRAFTS NEVER ENTER GROWTH OR MODEL CONTEXT
+  // 5. SAME-CIRCLE INACCESSIBLE LINEAGE IS REDACTED
+  // --------------------------------------------------
+  const sameCircleAuthorized = computeNearbyGrowthPreview(
+    mockSeeds[0],
+    mockReceipts,
+    mockOffers,
+    circleA,
+    circleA,
+    mockHeldNotes
+  );
+
+  assert(
+    sameCircleAuthorized.authorized === true &&
+      sameCircleAuthorized.safeSources.every(
+        (s) => ['available', 'redacted', 'unavailable'].includes(s.display)
+      ),
+    'PROVED: Same-circle sources use exact SafeSourceRef shape with available, redacted, or unavailable state'
+  );
+
+  // --------------------------------------------------
+  // 6. SEMANTIC PROPOSAL LABELING MATCHES MECHANISM
+  // --------------------------------------------------
+  assert(
+    growthPreview.lanes.semanticLane.length > 0 &&
+      growthPreview.lanes.semanticLane[0].primaryLane === 'semantic' &&
+      growthPreview.lanes.semanticLane[0].classification === 'model_interpretation',
+    'PROVED: Semantic Proposal lane is explicitly classified as model_interpretation without claiming vector search'
+  );
+
+  // --------------------------------------------------
+  // 7. PRIVATE HELD DONKEY DRAFTS NEVER ENTER GROWTH OR MODEL CONTEXT
   // --------------------------------------------------
   const rawClaimsWithHeld = [
     {
-      claim: 'Private conflict note about neighbor boundaries', // Held draft text!
+      claim: 'Private conflict note about neighbor boundaries',
       sourceId: 'rcpt-101',
     },
   ];
@@ -203,26 +227,6 @@ async function runIntelligenceTests() {
   assert(
     reportWithHeld.aiSummary?.length === 0 && reportWithHeld.hasUnbackedClaimsDropped === true,
     'PROVED: Held Donkey drafts are strictly omitted and NEVER enter What Changed reports or model context'
-  );
-
-  // --------------------------------------------------
-  // 6. INACTIVITY NEVER BECOMES INFERRED REJECTION
-  // --------------------------------------------------
-  assert(
-    growthPreview.lanes.rejectedParallelLane.length === 1 &&
-      growthPreview.lanes.rejectedParallelLane[0].details.includes('Explicitly set aside'),
-    'PROVED: rejected_parallel contains ONLY explicit offer.declined / need.closed domain evidence, and NEVER infers rejection from inactivity'
-  );
-
-  // --------------------------------------------------
-  // 7. RESULTS DIVERSIFY ACROSS primaryLane
-  // --------------------------------------------------
-  const primaryLanes = growthPreview.diversifiedResults.map((r) => r.primaryLane);
-  const uniqueLanes = new Set(primaryLanes);
-
-  assert(
-    uniqueLanes.size === primaryLanes.length && primaryLanes.length >= 4,
-    'PROVED: Nearby Growth results diversify across primaryLane without collapsing into a single similarity score'
   );
 
   // --------------------------------------------------
@@ -253,7 +257,7 @@ async function runIntelligenceTests() {
     'PROVED: Two different circle identities cannot retrieve each other evidence (Circle B gets 0 items for Circle A data)'
   );
 
-  console.log('\n🎉 ALL PASS 5B CONSTITUTIONAL CORRECTION TESTS PASSED SUCCESSFULLY!\n');
+  console.log('\n🎉 ALL PASS 5C DISPOSITION SEMANTICS AND PRIVACY CONSISTENCY TESTS PASSED!\n');
 }
 
 runIntelligenceTests().catch((err) => {

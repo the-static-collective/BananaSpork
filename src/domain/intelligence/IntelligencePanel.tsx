@@ -400,7 +400,7 @@ export const IntelligencePanel: React.FC<IntelligencePanelProps> = ({
                   {/* Lane 1: Semantic Lane */}
                   <div className="bg-amber-50/80 p-2.5 rounded-2xl border border-amber-200 text-xs space-y-1">
                     <strong className="font-extrabold text-amber-950 text-[10px] uppercase tracking-wider block">
-                      1. Semantic
+                      1. Semantic Proposal
                     </strong>
                     {preview.lanes.semanticLane.map((s) => (
                       <div key={s.id} className="text-[11px] font-medium text-amber-900">

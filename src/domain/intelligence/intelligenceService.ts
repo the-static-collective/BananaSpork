@@ -38,6 +38,35 @@ export function sanitizeContextWithoutHeldNotes<T>(
 }
 
 /**
+ * Helper: Check if a receipt carries an explicit rejection / set-aside disposition.
+ * Generic closure or fulfillment (e.g. need.closed, fulfillment.confirmed) is NOT rejection.
+ * Explicit dispositions: declined, rejected, composted, abandoned, superseded, preserved_as_parallel.
+ */
+export function hasExplicitRejectionDisposition(r: WitnessReceipt): boolean {
+  const explicitEvents = [
+    'offer.declined',
+    'seed.composted',
+    'branch.abandoned',
+    'proposal.rejected',
+  ];
+  if (explicitEvents.includes(r.eventType)) {
+    return true;
+  }
+
+  const text = `${r.title} ${r.details}`.toLowerCase();
+  const explicitKeywords = [
+    'declined',
+    'rejected',
+    'composted',
+    'abandoned',
+    'superseded',
+    'preserved_as_parallel',
+  ];
+
+  return explicitKeywords.some((kw) => text.includes(kw));
+}
+
+/**
  * 1. WHAT CHANGED? - Scope-first, deterministic event change list & optional summary
  */
 export function buildDeterministicChangeList(
@@ -45,7 +74,7 @@ export function buildDeterministicChangeList(
   userScopeCircleId?: string,
   authorizedCircleId?: string
 ): DeterministicChangeItem[] {
-  // Scope authorization boundary check
+  // Scope authorization boundary check: cross-circle requests omit entirely
   const isAuthorized =
     !userScopeCircleId || !authorizedCircleId || userScopeCircleId === authorizedCircleId;
 
@@ -255,21 +284,13 @@ export function computeNearbyGrowthPreview(
   const sanitizedOffers = sanitizeContextWithoutHeldNotes(offers, heldNotes);
 
   if (!isAuthorized) {
-    // Return redacted/unavailable sources preserving existence without content
-    const redactedSources: SafeSourceRef[] = [
-      {
-        eventId: `redacted-${seed.id}`,
-        openable: false,
-        display: 'redacted',
-      },
-    ];
-
+    // Cross-circle privacy rule: OMIT entirely including eventId. Never expose cross-circle eventId!
     return {
       id: `growth-${seed.id}`,
       seedId: seed.id,
       title: 'Restricted Circle Seed',
       stage: seed.stage,
-      summary: 'Content redacted due to cross-circle scope boundary.',
+      summary: 'Content omitted due to cross-circle scope boundary.',
       lanes: {
         semanticLane: [],
         lineageLane: [],
@@ -278,14 +299,14 @@ export function computeNearbyGrowthPreview(
         rejectedParallelLane: [],
       },
       diversifiedResults: [],
-      safeSources: redactedSources,
+      safeSources: [], // Omit entirely, no cross-circle eventId exposed!
       authorized: false,
     };
   }
 
   const safeSources: SafeSourceRef[] = [];
 
-  // LANE 1: Semantic Lane (Model-interpreted suggestions & semantic connections)
+  // LANE 1: Semantic Proposal Lane (Model-interpreted suggestions & semantic proposal connections)
   const semanticLane: NearbyGrowthLaneItem[] = [
     {
       id: `sem-${seed.id}-1`,
@@ -307,9 +328,13 @@ export function computeNearbyGrowthPreview(
     },
   ];
 
-  // LANE 2: Lineage Lane (Parent seeds, historical receipts)
+  // LANE 2: Lineage Lane (Parent seeds, historical receipts, fulfilled & completed needs)
   const lineageLane: NearbyGrowthLaneItem[] = sanitizedReceipts
-    .filter((r) => r.details.includes(seed.title) || r.title.includes(seed.title))
+    .filter((r) => {
+      const matchesTitle = r.details.includes(seed.title) || r.title.includes(seed.title);
+      // Include fulfilled/closed needs in lineage, but exclude explicit rejection dispositions
+      return matchesTitle && !hasExplicitRejectionDisposition(r);
+    })
     .map((r) => {
       const ref: SafeSourceRef = {
         eventId: r.id,
@@ -381,17 +406,11 @@ export function computeNearbyGrowthPreview(
   ];
 
   // LANE 5: Rejected Parallel Lane
-  // RULE: MUST contain ONLY explicit rejected, declined, composted, abandoned, or closed branches
-  // supported by accessible domain evidence (e.g. offer.declined or need.closed events).
-  // NEVER infer rejection from inactivity or private held notes!
+  // RULE: MUST contain ONLY explicit rejected, declined, composted, abandoned, superseded,
+  // or preserved_as_parallel branches supported by accessible domain evidence.
+  // Generic closure or fulfillment (e.g. need.closed, fulfillment.confirmed) is NOT rejection!
   const rejectedParallelLane: NearbyGrowthLaneItem[] = sanitizedReceipts
-    .filter(
-      (r) =>
-        r.eventType === 'offer.declined' ||
-        r.eventType === 'need.closed' ||
-        r.details.toLowerCase().includes('declined') ||
-        r.details.toLowerCase().includes('closed')
-    )
+    .filter((r) => hasExplicitRejectionDisposition(r))
     .map((r) => {
       const ref: SafeSourceRef = {
         eventId: r.id,
@@ -407,7 +426,7 @@ export function computeNearbyGrowthPreview(
         primaryLane: 'rejected_parallel',
         classification: 'deterministic',
         explicitEvidence: [
-          `Explicit domain event: ${r.eventType}`,
+          `Explicit disposition event: ${r.eventType}`,
           `Reason / Note: ${r.details}`,
         ],
         safeSources: [ref],
