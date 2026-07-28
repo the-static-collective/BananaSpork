@@ -17,6 +17,7 @@ import {
 import { BasketOffer, KidProfile, ParticipationSeed, WitnessReceipt } from '../../types';
 import { ActionProposal, TodayProjection } from './types';
 import { buildTodayProjection, confirmActionProposal } from './campfireService';
+import { IntelligencePanel } from '../intelligence/IntelligencePanel';
 
 interface TodayViewProps {
   seeds: ParticipationSeed[];
@@ -296,6 +297,14 @@ export const TodayView: React.FC<TodayViewProps> = ({
           </div>
         </section>
       </div>
+
+      {/* HOUSEHOLD INTELLIGENCE PANEL (PASS 5) */}
+      <IntelligencePanel
+        receipts={receipts}
+        seeds={seeds}
+        offers={offers}
+        onPledgeNeed={onPledgeNeed}
+      />
     </div>
   );
 };

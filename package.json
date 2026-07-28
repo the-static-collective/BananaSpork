@@ -10,7 +10,7 @@
     "preview": "vite preview",
     "clean": "rm -rf dist server.cjs",
     "lint": "tsc --noEmit",
-    "test": "tsx src/domain/jubilee/jubilee.test.ts && tsx src/domain/donkey/donkey.test.ts && tsx src/domain/campfire/campfire.test.ts && tsx tests/canonical.test.ts"
+    "test": "tsx src/domain/jubilee/jubilee.test.ts && tsx src/domain/donkey/donkey.test.ts && tsx src/domain/campfire/campfire.test.ts && tsx src/domain/intelligence/intelligence.test.ts && tsx tests/canonical.test.ts"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",

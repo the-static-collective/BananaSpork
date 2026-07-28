@@ -446,6 +446,63 @@ Analyze the draft according to system instructions and output the required JSON 
   }
 });
 
+// 7. PASS 5 - Intelligence Summarize Changes API
+app.post('/api/intelligence/summarize-changes', async (req, res) => {
+  try {
+    const { receipts = [] } = req.body;
+    if (!Array.isArray(receipts) || receipts.length === 0) {
+      return res.json({ claims: [] });
+    }
+
+    const ai = getGenAI();
+    const eventContext = receipts
+      .map(
+        (r: any) =>
+          `[ID: ${r.id}, Seq: ${r.sequence}] Actor: ${r.actorName} | Type: ${r.eventType} | Title: ${r.title} | Details: ${r.details}`
+      )
+      .join('\n');
+
+    const prompt = `You are BananaGram's Opt-in Change Summarizer.
+Analyze these witnessed events from the household circle:
+${eventContext}
+
+Rules:
+1. Provide a concise factual summary of what changed.
+2. EVERY claim MUST explicitly cite its exact sourceId from the events list. No unbacked claims are allowed!
+
+Respond in valid JSON format:
+{
+  "claims": [
+    {
+      "claim": "Alice opened a new seed for Organic Fruit Box.",
+      "sourceId": "exact_receipt_id"
+    }
+  ]
+}`;
+
+    const response = await ai.models.generateContent({
+      model: 'gemini-3.6-flash',
+      contents: prompt,
+      config: {
+        responseMimeType: 'application/json',
+        temperature: 0.2,
+      },
+    });
+
+    const parsed = JSON.parse(response.text || '{"claims":[]}');
+    res.json(parsed);
+  } catch (err: any) {
+    console.error('Error in /api/intelligence/summarize-changes:', err);
+    // Safe fallback returning structured claims mapped directly to receipts
+    const receipts = req.body.receipts || [];
+    const fallbackClaims = receipts.slice(0, 3).map((r: any) => ({
+      claim: `${r.actorName || 'Member'} recorded ${r.title || r.eventType}: ${r.details || ''}`,
+      sourceId: r.id,
+    }));
+    res.json({ claims: fallbackClaims });
+  }
+});
+
 async function startServer() {
   if (process.env.NODE_ENV !== 'production') {
     const vite = await createViteServer({
