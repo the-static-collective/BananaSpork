@@ -1,17 +1,11 @@
 import React, { useState } from 'react';
 import {
   Sparkles,
-  Clock,
-  ShieldCheck,
-  ExternalLink,
   Sprout,
-  Filter,
   CheckCircle2,
   AlertCircle,
-  Eye,
   PlusCircle,
   EyeOff,
-  Tag,
   Link2,
 } from 'lucide-react';
 import { BasketOffer, ParticipationSeed, WitnessReceipt } from '../../types';
@@ -62,7 +56,7 @@ export const IntelligencePanel: React.FC<IntelligencePanelProps> = ({
   // Gentle Matches
   const matches: GentleMatchCandidate[] = computeGentleMatches(seeds, offers);
 
-  // Nearby Growth Previews for active seeds
+  // Nearby Growth Previews for active seeds (5 Explicit Lanes)
   const growthPreviews: NearbyGrowthPreviewItem[] = seeds
     .filter((s) => !ignoredItems.includes(s.id))
     .map((s) => computeNearbyGrowthPreview(s, receipts, offers, userCircleId, userCircleId));
@@ -107,7 +101,7 @@ export const IntelligencePanel: React.FC<IntelligencePanelProps> = ({
   };
 
   return (
-    <div className="bg-white rounded-3xl border border-amber-200 shadow-sm p-4 sm:p-6 space-y-6">
+    <div className="bg-white rounded-3xl border border-amber-200 shadow-xs p-4 sm:p-6 space-y-6">
       {/* Panel Banner */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-amber-100 pb-4">
         <div>
@@ -165,7 +159,7 @@ export const IntelligencePanel: React.FC<IntelligencePanelProps> = ({
           {/* Controls & Opt-in Toggle */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-amber-50/80 p-3.5 rounded-2xl border border-amber-200">
             <div className="text-xs text-amber-900 font-medium">
-              <strong className="font-bold text-amber-950">Deterministic Ledger First:</strong> Verified witness receipts from household circle.
+              <strong className="font-bold text-amber-950">Deterministic Ledger First:</strong> Verified witness receipts with actor attribution.
             </div>
 
             <button
@@ -213,11 +207,11 @@ export const IntelligencePanel: React.FC<IntelligencePanelProps> = ({
 
                       {/* SafeSourceRef Link Button */}
                       <button
-                        onClick={() => setHighlightedReceiptId(item.sourceRef.sourceId)}
+                        onClick={() => setHighlightedReceiptId(item.sourceRef.eventId)}
                         className="py-1 px-2.5 rounded-lg bg-amber-200 hover:bg-amber-300 text-amber-950 font-bold text-[10px] transition flex items-center space-x-1 shrink-0 cursor-pointer min-h-[36px]"
                       >
                         <Link2 className="w-3 h-3 text-amber-800" />
-                        <span>Source: [Receipt #{item.sourceRef.sequence || 'ref'}]</span>
+                        <span>Source: [{item.sourceRef.display}]</span>
                       </button>
                     </div>
                   ))
@@ -257,7 +251,7 @@ export const IntelligencePanel: React.FC<IntelligencePanelProps> = ({
                   <p className="text-[11px] text-amber-800 font-medium">{item.details}</p>
 
                   <div className="text-[10px] text-amber-700/80 font-mono pt-1 border-t border-amber-200/60 flex items-center justify-between">
-                    <span>Actor: {item.actorName}</span>
+                    <span>Actor Attribution: {item.actorName}</span>
                     <span>SHA-256: {item.sha256Hash.substring(0, 12)}...</span>
                   </div>
                 </div>
@@ -273,7 +267,7 @@ export const IntelligencePanel: React.FC<IntelligencePanelProps> = ({
           <div className="bg-amber-50/80 p-3.5 rounded-2xl border border-amber-200 text-xs text-amber-900 space-y-1">
             <strong className="font-bold text-amber-950">Gentle Matching Rule:</strong>
             <p className="text-[11px] text-amber-800">
-              Surfaces Basket offers that may answer an open circle need. Structural evidence is explicitly separated from semantic interpretations. <strong>Never auto-pledges or auto-notifies.</strong>
+              Surfaces Basket offers that may answer an open circle need. Structural evidence is explicitly separated from semantic interpretations. <strong>Never auto-pledges or auto-notifies. Standalone offers remain local/proposed.</strong>
             </p>
           </div>
 
@@ -291,8 +285,13 @@ export const IntelligencePanel: React.FC<IntelligencePanelProps> = ({
                   {/* Need -> Offer Headline */}
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-amber-200/80 pb-2.5">
                     <div>
-                      <div className="text-[10px] font-extrabold text-amber-800 uppercase tracking-wider">
-                        Gentle Match Candidate ({m.confidence} Confidence)
+                      <div className="text-[10px] font-extrabold text-amber-800 uppercase tracking-wider flex items-center space-x-1">
+                        <span>Gentle Match ({m.primaryLane} lane • {m.classification})</span>
+                        {m.isStandaloneProposedOffer && (
+                          <span className="bg-amber-200 text-amber-900 px-1.5 py-0.5 rounded text-[9px] font-bold">
+                            Local / Proposed Offer
+                          </span>
+                        )}
                       </div>
                       <h4 className="font-extrabold text-amber-950 text-xs sm:text-sm mt-0.5">
                         Open Need: "{m.needTitle}" ↔ Offer: "{m.offerTitle}"
@@ -366,9 +365,9 @@ export const IntelligencePanel: React.FC<IntelligencePanelProps> = ({
       {activeTab === 'growth_preview' && (
         <div className="space-y-5">
           <div className="bg-amber-50/80 p-3.5 rounded-2xl border border-amber-200 text-xs text-amber-900 space-y-1">
-            <strong className="font-bold text-amber-950">Growth Preview Rules:</strong>
+            <strong className="font-bold text-amber-950">Growth Preview Rules (5 Explicit Lanes):</strong>
             <p className="text-[11px] text-amber-800">
-              Authorization scoped before retrieval. Computes 4 deterministic lanes (Lineage, Active Tension, Human Link, Rejected Parallel) before evaluating semantic search. User actions limited to <strong>Open</strong>, <strong>Add to packet</strong>, or <strong>Ignore</strong> without auto-mutation.
+              Computes 5 explicit lanes (semantic, lineage, active_tension, human_link, rejected_parallel) with primaryLane diversification. Private held Donkey notes are strictly excluded.
             </p>
           </div>
 
@@ -396,15 +395,27 @@ export const IntelligencePanel: React.FC<IntelligencePanelProps> = ({
                   </span>
                 </div>
 
-                {/* 4 DETERMINISTIC LANES GRID */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 pt-1">
-                  {/* Lane 1: Lineage Lane */}
-                  <div className="bg-amber-50/80 p-3 rounded-2xl border border-amber-200 text-xs space-y-1">
+                {/* 5 EXPLICIT LANES GRID */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2 pt-1">
+                  {/* Lane 1: Semantic Lane */}
+                  <div className="bg-amber-50/80 p-2.5 rounded-2xl border border-amber-200 text-xs space-y-1">
                     <strong className="font-extrabold text-amber-950 text-[10px] uppercase tracking-wider block">
-                      1. Lineage Lane
+                      1. Semantic
+                    </strong>
+                    {preview.lanes.semanticLane.map((s) => (
+                      <div key={s.id} className="text-[11px] font-medium text-amber-900">
+                        • {s.title}
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Lane 2: Lineage Lane */}
+                  <div className="bg-amber-50/80 p-2.5 rounded-2xl border border-amber-200 text-xs space-y-1">
+                    <strong className="font-extrabold text-amber-950 text-[10px] uppercase tracking-wider block">
+                      2. Lineage
                     </strong>
                     {preview.lanes.lineageLane.length === 0 ? (
-                      <span className="text-[10px] text-amber-700 italic">No historical lineage</span>
+                      <span className="text-[10px] text-amber-700 italic">No lineage</span>
                     ) : (
                       preview.lanes.lineageLane.map((l) => (
                         <div key={l.id} className="text-[11px] font-medium text-amber-900">
@@ -414,43 +425,51 @@ export const IntelligencePanel: React.FC<IntelligencePanelProps> = ({
                     )}
                   </div>
 
-                  {/* Lane 2: Active Tension Lane */}
-                  <div className="bg-amber-50/80 p-3 rounded-2xl border border-amber-200 text-xs space-y-1">
+                  {/* Lane 3: Active Tension Lane */}
+                  <div className="bg-amber-50/80 p-2.5 rounded-2xl border border-amber-200 text-xs space-y-1">
                     <strong className="font-extrabold text-amber-950 text-[10px] uppercase tracking-wider block">
-                      2. Active Tension Lane
+                      3. Active Tension
                     </strong>
                     {preview.lanes.activeTensionLane.map((t) => (
                       <div key={t.id} className="text-[11px] font-medium text-amber-900">
-                        • {t.title} ({t.type})
+                        • {t.title}
                       </div>
                     ))}
                   </div>
 
-                  {/* Lane 3: Human Link Lane */}
-                  <div className="bg-amber-50/80 p-3 rounded-2xl border border-amber-200 text-xs space-y-1">
+                  {/* Lane 4: Human Link Lane */}
+                  <div className="bg-amber-50/80 p-2.5 rounded-2xl border border-amber-200 text-xs space-y-1">
                     <strong className="font-extrabold text-amber-950 text-[10px] uppercase tracking-wider block">
-                      3. Human Link Lane
+                      4. Human Link
                     </strong>
                     {preview.lanes.humanLinkLane.map((h) => (
                       <div key={h.id} className="text-[11px] font-medium text-amber-900">
-                        • {h.name} ({h.role})
+                        • {h.title}
                       </div>
                     ))}
                   </div>
 
-                  {/* Lane 4: Rejected Parallel Lane */}
-                  <div className="bg-amber-50/80 p-3 rounded-2xl border border-amber-200 text-xs space-y-1">
+                  {/* Lane 5: Rejected Parallel Lane */}
+                  <div className="bg-amber-50/80 p-2.5 rounded-2xl border border-amber-200 text-xs space-y-1">
                     <strong className="font-extrabold text-amber-950 text-[10px] uppercase tracking-wider block">
-                      4. Rejected Parallel Lane
+                      5. Rejected Parallel
                     </strong>
-                    <span className="text-[10px] text-amber-700 italic">None set aside</span>
+                    {preview.lanes.rejectedParallelLane.length === 0 ? (
+                      <span className="text-[10px] text-amber-700 italic">None set aside</span>
+                    ) : (
+                      preview.lanes.rejectedParallelLane.map((r) => (
+                        <div key={r.id} className="text-[11px] font-medium text-amber-900">
+                          • {r.title}
+                        </div>
+                      ))
+                    )}
                   </div>
                 </div>
 
                 {/* USER ACTIONS ONLY BAR */}
                 <div className="flex flex-wrap items-center justify-between gap-2 border-t border-amber-100 pt-2.5">
                   <span className="text-[10px] text-amber-800 font-bold">
-                    SafeSourceRefs: {preview.safeSources.length} verified
+                    SafeSourceRefs: {preview.safeSources.length} verified • Diversified lanes: {preview.diversifiedResults.length}
                   </span>
 
                   <div className="flex items-center space-x-2">

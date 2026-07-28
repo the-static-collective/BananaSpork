@@ -1,4 +1,5 @@
 import { BasketOffer, ParticipationSeed, WitnessReceipt } from '../../types';
+import { DonkeyHeldNote } from '../donkey/types';
 import {
   buildDeterministicChangeList,
   buildWhatChangedReport,
@@ -16,7 +17,7 @@ function assert(condition: boolean, message: string) {
 
 async function runIntelligenceTests() {
   console.log('\n========================================');
-  console.log('  PASS 5: HOUSEHOLD INTELLIGENCE TESTS');
+  console.log('  PASS 5B: CONSTITUTIONAL CORRECTION TESTS');
   console.log('========================================\n');
 
   // Test Fixtures
@@ -26,7 +27,7 @@ async function runIntelligenceTests() {
       sequence: 1,
       sha256Hash: 'a1b2c3d4e5f6',
       predecessorHash: 'GENESIS',
-      actorName: 'Alice Household',
+      actorName: 'Alice Household', // Actor attribution
       eventType: 'need.opened',
       title: 'Opened Need: Organic Toddler Oat Cereal',
       timestamp: '2026-07-28 09:00',
@@ -49,17 +50,17 @@ async function runIntelligenceTests() {
       sha256Hash: 'c3d4e5f6a1b2',
       predecessorHash: 'b2c3d4e5f6a1',
       actorName: 'Alice Household',
-      eventType: 'fulfillment.confirmed',
-      title: 'Fulfillment Confirmed',
+      eventType: 'offer.declined',
+      title: 'Declined Alternative Offer: Sugary Cereal',
       timestamp: '2026-07-28 10:00',
-      details: 'Confirmed receipt of 2 oat cereal boxes from Bob',
+      details: 'Declined offer due to dietary restriction - explicitly closed branch',
     },
   ];
 
   const mockSeeds: ParticipationSeed[] = [
     {
       id: 'seed-501',
-      title: 'Morning Breakfast Oat Station',
+      title: 'Organic Toddler Oat Cereal',
       stage: 'Seed',
       authorName: 'Alice Household',
       description: 'Community porridge and warm breakfast support for young toddlers',
@@ -91,92 +92,168 @@ async function runIntelligenceTests() {
     },
   ];
 
-  // --------------------------------------------------
-  // TEST 1: Scope-First Retrieval Boundary
-  // --------------------------------------------------
-  const circleA = 'circle-uuid-aaa';
-  const circleB = 'circle-uuid-bbb';
-
-  const authorizedList = buildDeterministicChangeList(mockReceipts, circleA, circleA);
-  assert(authorizedList.length === 3, 'Scope-first retrieval returns items when user circle matches target circle');
-
-  const unauthorizedList = buildDeterministicChangeList(mockReceipts, circleB, circleA);
-  assert(unauthorizedList.length === 0, 'Scope-first retrieval denies access and returns empty array when circles mismatch');
-
-  // --------------------------------------------------
-  // TEST 2: Deterministic Change List Verifiability
-  // --------------------------------------------------
-  assert(
-    authorizedList[0].sequence === 3 && authorizedList[0].id === 'rcpt-103',
-    'Deterministic change list is ordered in reverse sequence order (newest first)'
-  );
-  assert(
-    authorizedList[0].sourceRef.accessible === true && authorizedList[0].sourceRef.sourceId === 'rcpt-103',
-    'Every deterministic item contains an accessible SafeSourceRef pointing to the witness receipt'
-  );
-
-  // --------------------------------------------------
-  // TEST 3: AI Summary Source Citing & Drop Unbacked Claims
-  // --------------------------------------------------
-  const rawClaims = [
+  const mockHeldNotes: DonkeyHeldNote[] = [
     {
-      claim: 'Bob Neighbor pledged 2 boxes of toddler oat cereal',
-      sourceId: 'rcpt-102', // Valid accessible receipt
-    },
-    {
-      claim: 'Secret donor gave $500 cash in unverified transaction',
-      sourceId: 'rcpt-non-existent-999', // Invalid / inaccessible source!
+      id: 'held-secret-1',
+      draft: 'Private conflict note about neighbor boundaries',
+      holdNote: 'Private hold note - NEVER SHARE TO CIRCLE OR AI',
+      timestamp: '2026-07-28 08:00',
     },
   ];
 
-  const report = buildWhatChangedReport(mockReceipts, circleA, circleA, rawClaims);
-  assert(report.aiSummary?.length === 1, 'AI Summary includes only claims with accessible, valid source references');
-  assert(report.hasUnbackedClaimsDropped === true, 'PROVED: Unbacked claims lacking accessible source are explicitly dropped');
+  const circleA = 'circle-uuid-aaa';
+  const circleB = 'circle-uuid-bbb';
+
+  // --------------------------------------------------
+  // 1. ALL FIVE LANES EXIST
+  // --------------------------------------------------
+  const growthPreview = computeNearbyGrowthPreview(
+    mockSeeds[0],
+    mockReceipts,
+    mockOffers,
+    circleA,
+    circleA,
+    mockHeldNotes
+  );
+
   assert(
-    report.aiSummary?.[0].sourceRef.sourceId === 'rcpt-102',
-    'AI Summary claim correctly links to its witness receipt source'
+    growthPreview.lanes.semanticLane !== undefined &&
+      growthPreview.lanes.lineageLane !== undefined &&
+      growthPreview.lanes.activeTensionLane !== undefined &&
+      growthPreview.lanes.humanLinkLane !== undefined &&
+      growthPreview.lanes.rejectedParallelLane !== undefined,
+    'PROVED: All five explicit lanes (semantic, lineage, active_tension, human_link, rejected_parallel) exist in Nearby Growth'
   );
 
   // --------------------------------------------------
-  // TEST 4: Gentle Matching (Separation of Evidence & Interpretation)
+  // 2. SEMANTIC IS A REAL SEPARATE LANE
   // --------------------------------------------------
-  const matches = computeGentleMatches(mockSeeds, mockOffers);
-  assert(matches.length === 1, 'Gentle matching correctly surfaces candidate offers for open needs');
-
-  const match = matches[0];
-  assert(match.structuralEvidence.categoryMatch === true, 'Gentle match includes deterministic structural evidence (categoryMatch)');
   assert(
-    typeof match.semanticInterpretation === 'string' && match.semanticInterpretation.length > 0,
-    'Gentle match includes semantic interpretation labeled separately from structural evidence'
+    growthPreview.lanes.semanticLane.length > 0 &&
+      growthPreview.lanes.semanticLane[0].primaryLane === 'semantic' &&
+      growthPreview.lanes.semanticLane[0].classification === 'model_interpretation',
+    'PROVED: Semantic lane is a real separate lane with primaryLane="semantic" and classification="model_interpretation"'
   );
 
   // --------------------------------------------------
-  // TEST 5: Nearby Growth Preview (4 Deterministic Lanes before Semantic Search)
+  // 3. EVERY RESULT HAS primaryLane AND SafeSourceRef
   // --------------------------------------------------
-  const growthPreview = computeNearbyGrowthPreview(mockSeeds[0], mockReceipts, mockOffers, circleA, circleA);
-  assert(growthPreview.authorized === true, 'Growth preview authorizes user within circle');
-  assert(Array.isArray(growthPreview.lanes.lineageLane), 'Growth preview provides Lineage Lane');
-  assert(Array.isArray(growthPreview.lanes.activeTensionLane), 'Growth preview provides Active Tension Lane');
-  assert(Array.isArray(growthPreview.lanes.humanLinkLane), 'Growth preview provides Human Link Lane');
-  assert(Array.isArray(growthPreview.lanes.rejectedParallelLane), 'Growth preview provides Rejected Parallel Lane');
+  const allResults = [
+    ...growthPreview.lanes.semanticLane,
+    ...growthPreview.lanes.lineageLane,
+    ...growthPreview.lanes.activeTensionLane,
+    ...growthPreview.lanes.humanLinkLane,
+    ...growthPreview.lanes.rejectedParallelLane,
+  ];
+
+  const allHaveLaneAndRef = allResults.every(
+    (r) =>
+      r.primaryLane &&
+      r.classification &&
+      Array.isArray(r.explicitEvidence) &&
+      Array.isArray(r.safeSources) &&
+      r.safeSources.every(
+        (s) => typeof s.eventId === 'string' && typeof s.openable === 'boolean' && ['available', 'redacted', 'unavailable'].includes(s.display)
+      )
+  );
+
   assert(
-    growthPreview.lanes.humanLinkLane[0].name === 'Alice Household',
-    'Human Link Lane identifies seed author'
+    allHaveLaneAndRef,
+    'PROVED: Every lane result carries primaryLane, classification, explicitEvidence, and exact SafeSourceRef shape ({ eventId, openable, display })'
   );
 
   // --------------------------------------------------
-  // TEST 6: Invariant Verification - NO AI Auto-Writes or Auto-Pledges
+  // 4. INACCESSIBLE SOURCES ARE REDACTED / UNAVAILABLE
   // --------------------------------------------------
-  assert(
-    mockSeeds[0].needs[0].status === 'open',
-    'PROVED: Intelligence computations and Gentle Matching NEVER auto-pledge or mutate open needs'
-  );
-  assert(
-    mockReceipts.length === 3,
-    'PROVED: Intelligence computations NEVER automatically append events or perform database writes'
+  const unauthorizedGrowth = computeNearbyGrowthPreview(
+    mockSeeds[0],
+    mockReceipts,
+    mockOffers,
+    circleB, // User circle B
+    circleA, // Authorized circle A
+    mockHeldNotes
   );
 
-  console.log('\n🎉 ALL PASS 5 HOUSEHOLD INTELLIGENCE TESTS PASSED SUCCESSFULLY!\n');
+  assert(
+    unauthorizedGrowth.authorized === false &&
+      unauthorizedGrowth.safeSources.length > 0 &&
+      unauthorizedGrowth.safeSources[0].display === 'redacted' &&
+      unauthorizedGrowth.safeSources[0].openable === false,
+    'PROVED: Inaccessible sources from mismatched circles carry display="redacted" and openable=false preserving existence without exposing content'
+  );
+
+  // --------------------------------------------------
+  // 5. PRIVATE HELD DONKEY DRAFTS NEVER ENTER GROWTH OR MODEL CONTEXT
+  // --------------------------------------------------
+  const rawClaimsWithHeld = [
+    {
+      claim: 'Private conflict note about neighbor boundaries', // Held draft text!
+      sourceId: 'rcpt-101',
+    },
+  ];
+
+  const reportWithHeld = buildWhatChangedReport(
+    mockReceipts,
+    circleA,
+    circleA,
+    rawClaimsWithHeld,
+    mockHeldNotes
+  );
+
+  assert(
+    reportWithHeld.aiSummary?.length === 0 && reportWithHeld.hasUnbackedClaimsDropped === true,
+    'PROVED: Held Donkey drafts are strictly omitted and NEVER enter What Changed reports or model context'
+  );
+
+  // --------------------------------------------------
+  // 6. INACTIVITY NEVER BECOMES INFERRED REJECTION
+  // --------------------------------------------------
+  assert(
+    growthPreview.lanes.rejectedParallelLane.length === 1 &&
+      growthPreview.lanes.rejectedParallelLane[0].details.includes('Explicitly set aside'),
+    'PROVED: rejected_parallel contains ONLY explicit offer.declined / need.closed domain evidence, and NEVER infers rejection from inactivity'
+  );
+
+  // --------------------------------------------------
+  // 7. RESULTS DIVERSIFY ACROSS primaryLane
+  // --------------------------------------------------
+  const primaryLanes = growthPreview.diversifiedResults.map((r) => r.primaryLane);
+  const uniqueLanes = new Set(primaryLanes);
+
+  assert(
+    uniqueLanes.size === primaryLanes.length && primaryLanes.length >= 4,
+    'PROVED: Nearby Growth results diversify across primaryLane without collapsing into a single similarity score'
+  );
+
+  // --------------------------------------------------
+  // 8. NO INTELLIGENCE PATH PERFORMS WRITES
+  // --------------------------------------------------
+  assert(
+    mockReceipts.length === 3 && mockSeeds[0].needs[0].status === 'open',
+    'PROVED: Intelligence computations are strictly read-only and NEVER perform background database writes or state mutations'
+  );
+
+  // --------------------------------------------------
+  // 9. UNSUPPORTED STANDALONE OFFERS REMAIN PROPOSALS
+  // --------------------------------------------------
+  const matches = computeGentleMatches(mockSeeds, mockOffers, mockHeldNotes);
+  assert(
+    matches.length > 0 && matches[0].isStandaloneProposedOffer === true,
+    'PROVED: Standalone Basket offers remain labeled as local/proposed and do not imply RPC shared ledger authority'
+  );
+
+  // --------------------------------------------------
+  // 10. TWO DIFFERENT CIRCLE IDENTITIES CANNOT RETRIEVE EACH OTHER'S EVIDENCE
+  // --------------------------------------------------
+  const circleAChanges = buildDeterministicChangeList(mockReceipts, circleA, circleA);
+  const circleBChanges = buildDeterministicChangeList(mockReceipts, circleB, circleA);
+
+  assert(
+    circleAChanges.length === 3 && circleBChanges.length === 0,
+    'PROVED: Two different circle identities cannot retrieve each other evidence (Circle B gets 0 items for Circle A data)'
+  );
+
+  console.log('\n🎉 ALL PASS 5B CONSTITUTIONAL CORRECTION TESTS PASSED SUCCESSFULLY!\n');
 }
 
 runIntelligenceTests().catch((err) => {

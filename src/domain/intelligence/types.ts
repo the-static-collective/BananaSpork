@@ -1,17 +1,26 @@
+export type SourceDisplayState = 'available' | 'redacted' | 'unavailable';
+
 export interface SafeSourceRef {
-  sourceId: string;
-  sourceType: 'receipt' | 'need' | 'offer' | 'proposal' | 'held_note' | 'seed';
-  title: string;
-  sequence?: number;
-  accessible: boolean;
+  eventId: string;
+  openable: boolean;
+  display: SourceDisplayState;
 }
+
+export type LaneType =
+  | 'semantic'
+  | 'lineage'
+  | 'active_tension'
+  | 'human_link'
+  | 'rejected_parallel';
+
+export type ClassificationType = 'deterministic' | 'model_interpretation';
 
 export interface DeterministicChangeItem {
   id: string;
   sequence: number;
   eventType: string;
   title: string;
-  actorName: string;
+  actorName: string; // Actor attribution (not cryptographic signature)
   timestamp: string;
   details: string;
   sha256Hash: string;
@@ -45,37 +54,32 @@ export interface GentleMatchCandidate {
   offerId: string;
   offerTitle: string;
   contributorName: string;
+  isStandaloneProposedOffer: boolean; // Standalone offers remain local/proposed
   structuralEvidence: StructuralEvidence;
   semanticInterpretation?: string;
   confidence: 'High' | 'Moderate' | 'Exploratory';
+  primaryLane: LaneType;
+  classification: ClassificationType;
+  explicitEvidence: string[];
   sourceRef: SafeSourceRef;
 }
 
+export interface NearbyGrowthLaneItem {
+  id: string;
+  title: string;
+  details: string;
+  primaryLane: LaneType;
+  classification: ClassificationType;
+  explicitEvidence: string[];
+  safeSources: SafeSourceRef[];
+}
+
 export interface NearbyGrowthLanes {
-  lineageLane: {
-    id: string;
-    title: string;
-    type: string;
-    sourceRef: SafeSourceRef;
-  }[];
-  activeTensionLane: {
-    id: string;
-    title: string;
-    type: string;
-    sourceRef: SafeSourceRef;
-  }[];
-  humanLinkLane: {
-    id: string;
-    name: string;
-    role: string;
-    sourceRef: SafeSourceRef;
-  }[];
-  rejectedParallelLane: {
-    id: string;
-    title: string;
-    reason: string;
-    sourceRef: SafeSourceRef;
-  }[];
+  semanticLane: NearbyGrowthLaneItem[];
+  lineageLane: NearbyGrowthLaneItem[];
+  activeTensionLane: NearbyGrowthLaneItem[];
+  humanLinkLane: NearbyGrowthLaneItem[];
+  rejectedParallelLane: NearbyGrowthLaneItem[];
 }
 
 export interface NearbyGrowthPreviewItem {
@@ -85,7 +89,7 @@ export interface NearbyGrowthPreviewItem {
   stage: string;
   summary: string;
   lanes: NearbyGrowthLanes;
-  semanticSuggestions?: string[];
+  diversifiedResults: NearbyGrowthLaneItem[];
   safeSources: SafeSourceRef[];
   authorized: boolean;
 }
