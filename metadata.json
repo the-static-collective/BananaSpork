@@ -1,0 +1,6 @@
+{
+  "name": "BananaGram: Nourish Kids",
+  "description": "A zero-frustration Telegram-style messenger and AI Nourish Assistant for overwhelmed parents.",
+  "requestFramePermissions": ["microphone"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
