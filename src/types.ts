@@ -107,7 +107,7 @@ export interface SeedNeed {
   title: string;
   category: BasketCategory;
   pledgedBy?: string;
-  status: 'open' | 'pledged' | 'confirmed';
+  status: 'open' | 'pledged' | 'confirmed' | 'fulfilled' | 'closed';
 }
 
 export interface ParticipationSeed {
@@ -123,13 +123,26 @@ export interface ParticipationSeed {
   timestamp: string;
 }
 
+export type WitnessEventType =
+  | 'need.opened'
+  | 'offer.pledged'
+  | 'offer.accepted'
+  | 'offer.declined'
+  | 'fulfillment.reported'
+  | 'fulfillment.confirmed'
+  | 'need.closed'
+  | 'offer.created'
+  | 'seed.opened'
+  | 'pledge.submitted'
+  | 'receipt.witnessed';
+
 export interface WitnessReceipt {
   id: string;
   sequence: number;
   sha256Hash: string;
   predecessorHash: string;
   actorName: string;
-  eventType: 'offer.created' | 'seed.opened' | 'pledge.submitted' | 'fulfillment.confirmed' | 'receipt.witnessed';
+  eventType: WitnessEventType;
   title: string;
   timestamp: string;
   details: string;

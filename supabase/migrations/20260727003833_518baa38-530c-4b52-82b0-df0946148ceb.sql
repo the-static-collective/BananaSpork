@@ -1,0 +1,11 @@
+REVOKE EXECUTE ON FUNCTION public.rpc_upsert_profile(text) FROM anon;
+REVOKE EXECUTE ON FUNCTION public.rpc_create_household_and_circle(text, text, text) FROM anon;
+REVOKE EXECUTE ON FUNCTION public.rpc_create_invitation(uuid, text) FROM anon;
+REVOKE EXECUTE ON FUNCTION public.rpc_redeem_invitation(text) FROM anon;
+REVOKE EXECUTE ON FUNCTION public.rpc_open_need(uuid, text, text, text, text, text[], text, bigint, text) FROM anon;
+REVOKE EXECUTE ON FUNCTION public.rpc_pledge_offer(uuid, text, text, uuid, text, text, bigint, text) FROM anon;
+REVOKE EXECUTE ON FUNCTION public.rpc_accept_offer(uuid, text, text, uuid) FROM anon;
+REVOKE EXECUTE ON FUNCTION public.rpc_decline_offer(uuid, text, text, uuid, text) FROM anon;
+REVOKE EXECUTE ON FUNCTION public.rpc_report_fulfillment(uuid, text, text, uuid, text) FROM anon;
+REVOKE EXECUTE ON FUNCTION public.rpc_confirm_fulfillment(uuid, text, text, uuid, bigint) FROM anon;
+REVOKE EXECUTE ON FUNCTION public.rpc_close_need(uuid, text, text, uuid, text) FROM anon;
