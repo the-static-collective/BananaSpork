@@ -27,6 +27,7 @@ import { BasketView } from './domain/campfire/BasketView';
 import { GrowView } from './domain/campfire/GrowView';
 import { RememberView } from './domain/campfire/RememberView';
 import { UniversalComposerModal } from './domain/campfire/UniversalComposerModal';
+import { CapacitorNativeHandler } from './components/CapacitorNativeHandler';
 import {
   createActionProposal,
   confirmActionProposal,
@@ -401,8 +402,38 @@ export default function App() {
 
   const unreadChatTotal = channels.reduce((acc, c) => acc + (c.unreadCount || 0), 0);
 
+  const isAnyModalOpen =
+    universalComposerOpen ||
+    onboardingOpen ||
+    photoAlbumOpen ||
+    groupManageOpen ||
+    pantryAppOpen ||
+    kidProfileModalOpen ||
+    sosModalOpen ||
+    jubileeHubOpen ||
+    sidebarOpen;
+
+  const handleCloseAllModals = () => {
+    setUniversalComposerOpen(false);
+    setOnboardingOpen(false);
+    setPhotoAlbumOpen(false);
+    setGroupManageOpen(false);
+    setPantryAppOpen(false);
+    setKidProfileModalOpen(false);
+    setSosModalOpen(false);
+    setJubileeHubOpen(false);
+    setSidebarOpen(false);
+  };
+
   return (
     <div className="flex flex-col h-screen w-screen overflow-hidden bg-amber-50 font-sans antialiased selection:bg-amber-300">
+      <CapacitorNativeHandler
+        activeModalOpen={isAnyModalOpen}
+        onCloseModal={handleCloseAllModals}
+        activeTab={activeTab}
+        setActiveTab={setActiveTab}
+      />
+
       {/* Campfire Header */}
       <Header
         activeChannelName={activeChannel.name}
