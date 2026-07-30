@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { ShieldAlert, Heart, Volume2, X, RefreshCw, Sparkles, CheckCircle2 } from 'lucide-react';
 import { KidProfile } from '../types';
+import { apiJson } from '../lib/api';
 
 interface SosModalProps {
   isOpen: boolean;
@@ -34,18 +35,18 @@ export const SosModal: React.FC<SosModalProps> = ({
       {
         title: 'The Cold Crunch Reset',
         prepTime: '30 seconds',
-        whyItWorks: 'Cold temperature + crunch activates the vagus nerve and interrupts panic screaming.',
+        whyItWorks: 'A familiar cold or crunchy food can offer a simple sensory focus without pressure.',
         howToServe: 'Hand over a cold cucumber spear, frozen berry, or crunchy cracker silently with zero pressure to eat.',
       },
       {
         title: 'Dipping Station',
         prepTime: '1 minute',
-        whyItWorks: 'Dipping gives toddlers a sense of control and playful sensory focus.',
+        whyItWorks: 'Dipping can offer a predictable choice and a low-pressure way to engage.',
         howToServe: 'Put 2 spoonfuls of yogurt, sunbutter/seed butter, or hummus in a small dip cup with pretzel sticks.',
       },
     ],
     sensoryTrick:
-      'Give them a wiggly straw in a tiny glass of ice water. Sucking through a straw releases endorphins and regulates nervous system arousal!',
+      'Reduce stimulation, use a calm voice, and offer a familiar quiet spot. Do not force food or drink.',
   });
 
   useEffect(() => {
@@ -57,12 +58,11 @@ export const SosModal: React.FC<SosModalProps> = ({
   const fetchSosData = async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/sos', {
+      const data = await apiJson<SosData>('/api/sos', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ kidProfile }),
       });
-      const data = await res.json();
       setSosData(data);
     } catch (e) {
       console.error(e);
@@ -128,6 +128,13 @@ export const SosModal: React.FC<SosModalProps> = ({
 
         {/* Scrollable Content */}
         <div className="p-4 overflow-y-auto space-y-3.5 text-xs">
+          <div className="rounded-2xl border border-red-300 bg-white p-3 text-[11px] font-semibold leading-relaxed text-red-900">
+            This is general parenting support, not medical advice. For trouble breathing or
+            swallowing, sudden swelling, fainting, or suspected anaphylaxis, follow your
+            child&apos;s emergency allergy plan, use prescribed epinephrine, and contact
+            emergency services immediately.
+          </div>
+
           {/* Mom Grounding Note */}
           <div className="bg-red-100 border-l-4 border-red-600 p-3.5 rounded-r-2xl text-red-950 font-bold leading-relaxed shadow-2xs">
             <div className="flex items-center space-x-1.5 text-red-700 font-extrabold text-xs uppercase tracking-wider mb-1">

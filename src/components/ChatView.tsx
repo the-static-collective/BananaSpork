@@ -175,7 +175,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
   };
 
   return (
-    <div className="flex-1 flex flex-col h-[calc(100vh-57px)] bg-amber-50/40 relative overflow-hidden">
+    <div className="flex-1 flex flex-col h-full bg-amber-50/40 relative overflow-hidden">
       {/* Pinned Message Banner */}
       {channel.pinnedMessage && (
         <div className="bg-amber-200/80 border-b border-amber-300/80 px-3 py-2 flex items-center justify-between text-xs text-amber-950 font-semibold shadow-2xs">

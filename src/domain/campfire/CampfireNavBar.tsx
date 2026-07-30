@@ -16,7 +16,7 @@ export const CampfireNavBar: React.FC<CampfireNavBarProps> = ({
   unreadChatCount = 0,
 }) => {
   const tabs: { id: CampfireTab; label: string; icon: React.ReactNode; badge?: number }[] = [
-    { id: 'today', label: 'Today', icon: <Home className="w-5 h-5" /> },
+    { id: 'today', label: 'Garden', icon: <Home className="w-5 h-5" /> },
     {
       id: 'porch',
       label: 'Porch',
@@ -70,7 +70,7 @@ export const CampfireNavBar: React.FC<CampfireNavBarProps> = ({
       </nav>
 
       {/* Mobile Navigation Bottom Bar (Fixed to bottom on small screens) */}
-      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-amber-950 text-amber-100 border-t border-amber-800 z-40 px-2 py-1 flex items-center justify-around shadow-lg">
+      <div className="native-bottom-nav md:hidden fixed bottom-0 left-0 right-0 bg-amber-950 text-amber-100 border-t border-amber-800 z-40 px-2 py-1 flex items-center justify-around shadow-lg">
         {tabs.slice(0, 2).map((tab) => (
           <button
             key={tab.id}

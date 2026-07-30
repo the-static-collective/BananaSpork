@@ -33,11 +33,18 @@ export interface TodayAttentionItem {
   seedId?: string;
   needId?: string;
   proposalId?: string;
+  canAct?: boolean;
 }
 
 export interface TodayActionItem {
   id: string;
-  type: 'active_pledge' | 'available_offer' | 'quick_good_enough';
+  type:
+    | 'active_pledge'
+    | 'review_offer'
+    | 'report_fulfillment'
+    | 'confirm_fulfillment'
+    | 'available_offer'
+    | 'quick_good_enough';
   title: string;
   subtitle: string;
   badge: string;

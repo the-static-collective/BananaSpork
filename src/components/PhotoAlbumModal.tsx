@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { Camera, Image as ImageIcon, Sparkles, X, Plus, Share2, Tag, UploadCloud, RefreshCw } from 'lucide-react';
 import { PhotoAlbumItem, KidProfile } from '../types';
+import { apiJson } from '../lib/api';
 
 interface PhotoAlbumModalProps {
   isOpen: boolean;
@@ -48,7 +49,7 @@ export const PhotoAlbumModal: React.FC<PhotoAlbumModalProps> = ({
       setAiAnalyzing(true);
       let aiNote = '';
       try {
-        const res = await fetch('/api/analyze-image', {
+        const data = await apiJson<{ analysis?: string }>('/api/analyze-image', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -56,10 +57,10 @@ export const PhotoAlbumModal: React.FC<PhotoAlbumModalProps> = ({
             kidProfile,
           }),
         });
-        const data = await res.json();
         aiNote = data.analysis || 'Identified fresh food items!';
       } catch (err) {
-        aiNote = 'Uploaded photo safely to parent album.';
+        console.error(err);
+        aiNote = 'AI analysis unavailable. This photo remains in the device-local album.';
       } finally {
         setAiAnalyzing(false);
       }

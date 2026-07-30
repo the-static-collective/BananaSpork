@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Sparkles, X, Plus, Check, Clock, ShieldCheck, Share2, RefreshCw } from 'lucide-react';
 import { COMMON_PANTRY_INGREDIENTS } from '../../data/presetChannels';
 import { KidProfile, RecipeCard } from '../../types';
+import { apiJson } from '../../lib/api';
 
 interface PantryRescueAppProps {
   isOpen: boolean;
@@ -62,7 +63,10 @@ export const PantryRescueApp: React.FC<PantryRescueAppProps> = ({
     setResults(null);
 
     try {
-      const res = await fetch('/api/pantry-rescue', {
+      const data = await apiJson<{
+        ideas: RecipeCard[];
+        momEncouragement?: string;
+      }>('/api/pantry-rescue', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -71,8 +75,6 @@ export const PantryRescueApp: React.FC<PantryRescueAppProps> = ({
           mood,
         }),
       });
-
-      const data = await res.json();
       setResults(data);
     } catch (e) {
       console.error(e);
@@ -91,7 +93,8 @@ export const PantryRescueApp: React.FC<PantryRescueAppProps> = ({
             meltdownRisk: 'Very Low',
           },
         ],
-        momEncouragement: 'Take a deep breath! Any food in their tummy is a win right now.',
+        momEncouragement:
+          'AI service unavailable — this is a built-in, this-device fallback. Use only ingredients already known to be safe for your child and check allergy labels.',
       });
     } finally {
       setLoading(false);

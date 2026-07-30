@@ -4,15 +4,21 @@ import { ParticipationSeed } from '../../types';
 
 interface GrowViewProps {
   seeds: ParticipationSeed[];
+  currentUser: { id: string; role: string };
   onOpenUniversalComposer: () => void;
   onPledgeNeed: (seedId: string, needId: string, pledgedBy: string) => void;
-  onConfirmFulfillment: (seedId: string, needId: string) => void;
+  onAcceptOffer: (offerId: string) => void;
+  onReportFulfillment: (offerId: string) => void;
+  onConfirmFulfillment: (seedId: string, offerId: string) => void;
 }
 
 export const GrowView: React.FC<GrowViewProps> = ({
   seeds,
+  currentUser,
   onOpenUniversalComposer,
   onPledgeNeed,
+  onAcceptOffer,
+  onReportFulfillment,
   onConfirmFulfillment,
 }) => {
   return (
@@ -73,9 +79,9 @@ export const GrowView: React.FC<GrowViewProps> = ({
                   <div
                     key={need.id}
                     className={`p-3 rounded-2xl border text-xs flex items-center justify-between gap-2 ${
-                      need.status === 'confirmed'
+                      need.status === 'confirmed' || need.status === 'fulfilled'
                         ? 'bg-emerald-50 border-emerald-300 text-emerald-950'
-                        : need.status === 'pledged'
+                        : ['pledged', 'accepted', 'reported'].includes(need.status)
                         ? 'bg-amber-100 border-amber-300 text-amber-950'
                         : 'bg-amber-50 border-amber-200 text-amber-950'
                     }`}
@@ -83,15 +89,23 @@ export const GrowView: React.FC<GrowViewProps> = ({
                     <div>
                       <div className="font-bold">{need.title}</div>
                       <div className="text-[10px] opacity-80 mt-0.5">
-                        {need.status === 'confirmed'
+                        {need.status === 'confirmed' || need.status === 'fulfilled'
                           ? '✅ Fulfilled'
                           : need.status === 'pledged'
-                          ? `🤝 Pledged by ${need.pledgedBy || 'Neighbor'}`
-                          : '🌿 Open Need'}
+                            ? `🤝 Offered by ${need.pledgedBy || 'Neighbor'}`
+                            : need.status === 'accepted'
+                              ? '🌱 Offer accepted; awaiting contributor report'
+                              : need.status === 'reported'
+                                ? '👁 Reported; awaiting household witness'
+                                : need.status === 'declined'
+                                  ? '🍂 Offer declined'
+                                  : need.status === 'closed'
+                                    ? 'Closed'
+                                    : '🌿 Open Need'}
                       </div>
                     </div>
 
-                    {need.status === 'open' && (
+                    {need.status === 'open' && currentUser.role !== 'household' && (
                       <button
                         onClick={() => onPledgeNeed(seed.id, need.id, 'Local Member (You)')}
                         className="py-1.5 px-3 rounded-xl bg-amber-900 hover:bg-amber-950 text-amber-50 font-extrabold text-[11px] transition shrink-0 min-h-[44px] cursor-pointer"
@@ -100,7 +114,7 @@ export const GrowView: React.FC<GrowViewProps> = ({
                       </button>
                     )}
 
-                    {need.status === 'pledged' && (
+                    {need.status === 'pledged' && !need.authorityOfferId && (
                       <button
                         onClick={() => onConfirmFulfillment(seed.id, need.id)}
                         className="py-1.5 px-3 rounded-xl bg-emerald-800 hover:bg-emerald-900 text-emerald-50 font-extrabold text-[11px] transition shrink-0 min-h-[44px] cursor-pointer"
@@ -108,6 +122,39 @@ export const GrowView: React.FC<GrowViewProps> = ({
                         Confirm
                       </button>
                     )}
+
+                    {need.status === 'pledged' &&
+                      need.authorityOfferId &&
+                      currentUser.role === 'household' && (
+                        <button
+                          onClick={() => onAcceptOffer(need.authorityOfferId!)}
+                          className="py-1.5 px-3 rounded-xl bg-amber-900 hover:bg-amber-950 text-amber-50 font-extrabold text-[11px] transition shrink-0 min-h-[44px] cursor-pointer"
+                        >
+                          Accept
+                        </button>
+                      )}
+
+                    {need.status === 'accepted' &&
+                      need.authorityOfferId &&
+                      need.contributorId === currentUser.id && (
+                        <button
+                          onClick={() => onReportFulfillment(need.authorityOfferId!)}
+                          className="py-1.5 px-3 rounded-xl bg-amber-900 hover:bg-amber-950 text-amber-50 font-extrabold text-[11px] transition shrink-0 min-h-[44px] cursor-pointer"
+                        >
+                          Report
+                        </button>
+                      )}
+
+                    {need.status === 'reported' &&
+                      need.authorityOfferId &&
+                      currentUser.role === 'household' && (
+                        <button
+                          onClick={() => onConfirmFulfillment(seed.id, need.authorityOfferId!)}
+                          className="py-1.5 px-3 rounded-xl bg-emerald-800 hover:bg-emerald-900 text-emerald-50 font-extrabold text-[11px] transition shrink-0 min-h-[44px] cursor-pointer"
+                        >
+                          Confirm
+                        </button>
+                      )}
                   </div>
                 ))}
               </div>

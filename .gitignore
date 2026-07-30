@@ -2,7 +2,21 @@ node_modules/
 build/
 dist/
 coverage/
+android-sdk/
 .DS_Store
 *.log
 .env*
 !.env.example
+
+# Local Android toolchain and generated native assets
+android/local.properties
+android/.gradle/
+android/app/build/
+android/app/src/main/assets/public/
+android/app/src/main/assets/capacitor.config.json
+android/app/src/main/assets/capacitor.plugins.json
+
+# Signing and provider credentials
+*.jks
+*.keystore
+android/app/google-services.json

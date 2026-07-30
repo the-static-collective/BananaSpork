@@ -28,11 +28,14 @@ import { GrowView } from './domain/campfire/GrowView';
 import { RememberView } from './domain/campfire/RememberView';
 import { UniversalComposerModal } from './domain/campfire/UniversalComposerModal';
 import { CapacitorNativeHandler } from './components/CapacitorNativeHandler';
+import { CampfireConnectionPanel } from './components/CampfireConnectionPanel';
 import {
   createActionProposal,
   confirmActionProposal,
   getLocalProposals,
 } from './domain/campfire/campfireService';
+import { apiJson } from './lib/api';
+import { useCampfireSession } from './integrations/supabase/useCampfireSession';
 
 const STORAGE_KEY_PROFILE = 'bananagram_kid_profile_v1';
 const STORAGE_KEY_MESSAGES = 'bananagram_messages_v1';
@@ -76,15 +79,18 @@ export default function App() {
     }
   });
 
+  const campfireConnection = useCampfireSession();
+
   // Jubilee Domain Gateway Connection
-  const currentUserName = 'Local Member (You)';
+  const currentUserName = campfireConnection.currentUser?.name || 'Local Member (You)';
   const currentUserObj = React.useMemo(
-    () => ({
-      id: 'usr-local',
-      name: currentUserName,
-      role: 'Member' as const,
-    }),
-    [currentUserName]
+    () =>
+      campfireConnection.currentUser || {
+        id: 'usr-local',
+        name: 'Local Member (You)',
+        role: 'Member' as const,
+      },
+    [campfireConnection.currentUser]
   );
   const {
     runtimeMode,
@@ -94,8 +100,15 @@ export default function App() {
     addOffer,
     addSeed,
     pledgeNeed,
+    acceptPledgedOffer,
+    reportFulfillment,
     confirmFulfillment,
-  } = useJubilee(currentUserObj);
+    refreshing: refreshingCampfire,
+    refreshError,
+  } = useJubilee(
+    currentUserObj,
+    campfireConnection.status === 'ready' ? campfireConnection.activeCircleId : undefined
+  );
 
   // UI Modals
   const [sidebarOpen, setSidebarOpen] = useState<boolean>(false);
@@ -113,6 +126,10 @@ export default function App() {
   const [photoAlbumOpen, setPhotoAlbumOpen] = useState<boolean>(false);
   const [groupManageOpen, setGroupManageOpen] = useState<boolean>(false);
   const [audioMuted, setAudioMuted] = useState<boolean>(false);
+  const [actionNotice, setActionNotice] = useState<{
+    kind: 'success' | 'error' | 'local';
+    text: string;
+  }>();
 
   // Save to local storage on updates
   useEffect(() => {
@@ -190,23 +207,23 @@ export default function App() {
 
   // Review & Confirm Action Proposal
   const handleConfirmProposal = async (proposalId: string) => {
-    const confirmed = confirmActionProposal(proposalId);
-    if (!confirmed) return;
+    const proposal = getLocalProposals().find((item) => item.id === proposalId);
+    if (!proposal) return;
 
-    setProposals(getLocalProposals());
+    let result: { success: boolean; error?: string } = { success: true };
 
-    // Execute domain side effects depending on verb
-    if (confirmed.verb === 'need') {
-      await addSeed({
-        title: confirmed.title,
+    // Execute only the authority action actually supported for this proposal.
+    if (proposal.verb === 'need') {
+      result = await addSeed({
+        title: proposal.title,
         stage: 'Seed',
         authorName: currentUserName,
-        description: confirmed.description,
+        description: proposal.description,
         needs: [
           {
             id: `n-${Date.now()}`,
-            title: confirmed.title,
-            category: confirmed.details?.category || 'Care',
+            title: proposal.title,
+            category: proposal.details?.category || 'Care',
             status: 'open',
           },
         ],
@@ -214,18 +231,18 @@ export default function App() {
         graftsCount: 1,
         harvestsCount: 0,
       });
-    } else if (confirmed.verb === 'offer') {
-      await addOffer({
-        title: confirmed.title,
-        category: confirmed.details?.category || 'Care',
+    } else if (proposal.verb === 'offer') {
+      result = await addOffer({
+        title: proposal.title,
+        category: proposal.details?.category || 'Care',
         contributorName: currentUserName,
         availability: 'Available now',
         boundary: 'Household / Neighborhood circle',
         icon: '🌱',
       });
-    } else if (confirmed.verb === 'remember') {
-      await addOffer({
-        title: `Remember: ${confirmed.title}`,
+    } else if (proposal.verb === 'remember') {
+      result = await addOffer({
+        title: `Remember: ${proposal.title}`,
         category: 'Skills',
         contributorName: currentUserName,
         availability: 'Recorded',
@@ -233,6 +250,30 @@ export default function App() {
         icon: '📜',
       });
     }
+
+    if (!result.success) {
+      setActionNotice({
+        kind: 'error',
+        text:
+          result.error ||
+          'This proposal remains local because the requested shared authority command failed.',
+      });
+      return;
+    }
+
+    const confirmed = confirmActionProposal(proposalId);
+    if (!confirmed) return;
+    setProposals(getLocalProposals());
+    const acceptedLocallyOnly = confirmed.verb === 'task' || confirmed.verb === 'event';
+    setActionNotice({
+      kind:
+        runtimeMode === 'shared_campfire' && !acceptedLocallyOnly ? 'success' : 'local',
+      text: acceptedLocallyOnly
+        ? 'Proposal accepted on this device. Task and event authority commands do not exist yet.'
+        : runtimeMode === 'shared_campfire'
+          ? 'The authority command succeeded and the shared Campfire was refreshed.'
+          : 'Accepted on this device. This is not shared or chain-verified history.',
+    });
 
     // Update messages containing this proposal to show confirmed status
     setMessagesByChannel((prev) => {
@@ -252,6 +293,50 @@ export default function App() {
         });
       });
       return updated;
+    });
+  };
+
+  const handlePledgeNeed = async (seedId: string, needId: string, pledgedBy: string) => {
+    const result = await pledgeNeed(seedId, needId, pledgedBy);
+    setActionNotice({
+      kind: result.success ? (runtimeMode === 'shared_campfire' ? 'success' : 'local') : 'error',
+      text: result.success
+        ? runtimeMode === 'shared_campfire'
+          ? 'Offer pledged through the authenticated authority command.'
+          : 'Pledge recorded on this device only.'
+        : result.error || 'The pledge was not recorded.',
+    });
+  };
+
+  const handleAcceptOffer = async (offerId: string) => {
+    const result = await acceptPledgedOffer(offerId);
+    setActionNotice({
+      kind: result.success ? 'success' : 'error',
+      text: result.success
+        ? 'Offer accepted through household authority.'
+        : result.error || 'The offer was not accepted.',
+    });
+  };
+
+  const handleReportFulfillment = async (offerId: string) => {
+    const result = await reportFulfillment(offerId, 'Reported fulfilled via NanaSpork');
+    setActionNotice({
+      kind: result.success ? 'success' : 'error',
+      text: result.success
+        ? 'Fulfillment reported. A household witness must still confirm it.'
+        : result.error || 'Fulfillment was not reported.',
+    });
+  };
+
+  const handleConfirmFulfillment = async (seedId: string, offerId: string) => {
+    const result = await confirmFulfillment(seedId, offerId);
+    setActionNotice({
+      kind: result.success ? (runtimeMode === 'shared_campfire' ? 'success' : 'local') : 'error',
+      text: result.success
+        ? runtimeMode === 'shared_campfire'
+          ? 'Fulfillment confirmed by household authority.'
+          : 'Fulfillment marked on this device only.'
+        : result.error || 'Fulfillment was not confirmed.',
     });
   };
 
@@ -282,20 +367,18 @@ export default function App() {
         const currentHistory = (messagesByChannel['bananabot'] || []).slice(-6);
 
         if (imageUri) {
-          const res = await fetch('/api/analyze-image', {
+          const data = await apiJson<{ analysis?: string }>('/api/analyze-image', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ imageBase64: imageUri, kidProfile }),
           });
-          const data = await res.json();
           botText = data.analysis || "I see some great ingredients! Let's make something toddler-approved!";
         } else {
-          const res = await fetch('/api/chat', {
+          const data = await apiJson<{ reply?: string; fallbackReply?: string }>('/api/chat', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ message: text, history: currentHistory, kidProfile }),
           });
-          const data = await res.json();
           botText = data.reply || data.fallbackReply;
         }
 
@@ -310,11 +393,18 @@ export default function App() {
         addMessageToChannel('bananabot', botMsg);
       } catch (err) {
         console.error(err);
+        setActionNotice({
+          kind: 'error',
+          text:
+            err instanceof Error
+              ? `BananaBot is unavailable: ${err.message}`
+              : 'BananaBot could not reach the configured AI service.',
+        });
         const botMsg: ChatMessage = {
           id: `bot-err-${Date.now()}`,
           sender: 'bot',
           senderName: 'BananaBot 🍌',
-          text: "🍌 *Quick Rescue Tip*: When in doubt, a 'Deconstructed Snack Plate' with crackers, cheese coins, and banana slices is 100% toddler safe!",
+          text: "🍌 I couldn't reach the AI service. Your message remains on this device. A built-in fallback: try a small deconstructed plate using only foods already known to be safe for your child, and check every label against their allergy plan.",
           timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         };
         addMessageToChannel('bananabot', botMsg);
@@ -426,7 +516,7 @@ export default function App() {
   };
 
   return (
-    <div className="flex flex-col h-screen w-screen overflow-hidden bg-amber-50 font-sans antialiased selection:bg-amber-300">
+    <div className="app-shell flex flex-col w-screen overflow-hidden bg-amber-50 font-sans antialiased selection:bg-amber-300">
       <CapacitorNativeHandler
         activeModalOpen={isAnyModalOpen}
         onCloseModal={handleCloseAllModals}
@@ -461,6 +551,21 @@ export default function App() {
         unreadChatCount={unreadChatTotal}
       />
 
+      {activeTab !== 'today' && (refreshError || actionNotice) && (
+        <div
+          className={`shrink-0 border-b px-4 py-2 text-[11px] font-semibold ${
+            refreshError || actionNotice?.kind === 'error'
+              ? 'border-red-300 bg-red-50 text-red-800'
+              : actionNotice?.kind === 'local'
+                ? 'border-amber-300 bg-amber-100 text-amber-900'
+                : 'border-emerald-300 bg-emerald-50 text-emerald-800'
+          }`}
+          role={refreshError || actionNotice?.kind === 'error' ? 'alert' : 'status'}
+        >
+          {refreshError || actionNotice?.text}
+        </div>
+      )}
+
       {/* Primary Tab Views */}
       <div className="flex-1 flex overflow-hidden relative">
         {/* TAB 1: TODAY (Default Signed-In View) */}
@@ -472,8 +577,36 @@ export default function App() {
             kidProfile={kidProfile}
             proposals={proposals}
             runtimeMode={runtimeMode}
-            onPledgeNeed={(seedId, needId, pledgedBy) => pledgeNeed(seedId, needId, pledgedBy)}
-            onConfirmFulfillment={(seedId, needId) => confirmFulfillment(seedId, needId)}
+            currentUser={currentUserObj}
+            connectionPanel={
+              <div className="space-y-2">
+                <CampfireConnectionPanel connection={campfireConnection} />
+                {(refreshingCampfire || refreshError || actionNotice) && (
+                  <div
+                    className={`rounded-xl border px-3 py-2 text-[11px] font-semibold ${
+                      refreshError || actionNotice?.kind === 'error'
+                        ? 'border-red-300 bg-red-50 text-red-800'
+                        : actionNotice?.kind === 'local'
+                          ? 'border-amber-300 bg-amber-100 text-amber-900'
+                          : 'border-emerald-300 bg-emerald-50 text-emerald-800'
+                    }`}
+                    role={refreshError || actionNotice?.kind === 'error' ? 'alert' : 'status'}
+                  >
+                    {refreshError ||
+                      actionNotice?.text ||
+                      (refreshingCampfire ? 'Refreshing shared Campfire history…' : '')}
+                  </div>
+                )}
+              </div>
+            }
+            onPledgeNeed={(seedId, needId, pledgedBy) =>
+              void handlePledgeNeed(seedId, needId, pledgedBy)
+            }
+            onAcceptOffer={(offerId) => void handleAcceptOffer(offerId)}
+            onReportFulfillment={(offerId) => void handleReportFulfillment(offerId)}
+            onConfirmFulfillment={(seedId, offerId) =>
+              void handleConfirmFulfillment(seedId, offerId)
+            }
             onConfirmProposal={handleConfirmProposal}
             onOpenPantryRescue={() => setPantryAppOpen(true)}
             onOpenUniversalComposer={() => setUniversalComposerOpen(true)}
@@ -521,8 +654,12 @@ export default function App() {
           <BasketView
             offers={offers}
             seeds={seeds}
+            runtimeMode={runtimeMode}
+            currentUserRole={currentUserObj.role}
             onOpenUniversalComposer={() => setUniversalComposerOpen(true)}
-            onPledgeNeed={(seedId, needId, pledgedBy) => pledgeNeed(seedId, needId, pledgedBy)}
+            onPledgeNeed={(seedId, needId, pledgedBy) =>
+              void handlePledgeNeed(seedId, needId, pledgedBy)
+            }
           />
         )}
 
@@ -530,9 +667,16 @@ export default function App() {
         {activeTab === 'grow' && (
           <GrowView
             seeds={seeds}
+            currentUser={currentUserObj}
             onOpenUniversalComposer={() => setUniversalComposerOpen(true)}
-            onPledgeNeed={(seedId, needId, pledgedBy) => pledgeNeed(seedId, needId, pledgedBy)}
-            onConfirmFulfillment={(seedId, needId) => confirmFulfillment(seedId, needId)}
+            onPledgeNeed={(seedId, needId, pledgedBy) =>
+              void handlePledgeNeed(seedId, needId, pledgedBy)
+            }
+            onAcceptOffer={(offerId) => void handleAcceptOffer(offerId)}
+            onReportFulfillment={(offerId) => void handleReportFulfillment(offerId)}
+            onConfirmFulfillment={(seedId, offerId) =>
+              void handleConfirmFulfillment(seedId, offerId)
+            }
           />
         )}
 
@@ -541,6 +685,7 @@ export default function App() {
           <RememberView
             receipts={receipts}
             photos={activeChannel.photos || []}
+            runtimeMode={runtimeMode}
             onOpenUniversalComposer={() => setUniversalComposerOpen(true)}
             onOpenPhotoAlbum={() => setPhotoAlbumOpen(true)}
             onOpenJubileeHub={() => setJubileeHubOpen(true)}

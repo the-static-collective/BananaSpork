@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Users, UserPlus, Bell, ShieldAlert, Sparkles, Copy, Check, X, Moon, Volume2, VolumeX, Radio, RefreshCw } from 'lucide-react';
 import { ChatChannel, GroupMember, GroupNotificationSetting, ChatMessage } from '../types';
+import { apiJson } from '../lib/api';
 
 interface GroupManageModalProps {
   isOpen: boolean;
@@ -111,7 +112,12 @@ export const GroupManageModal: React.FC<GroupManageModalProps> = ({
   const handleFetchAiSummary = async () => {
     setSummarizing(true);
     try {
-      const res = await fetch('/api/summarize-group', {
+      const data = await apiJson<{
+        keyTakeaways?: string[];
+        actionItems?: string[];
+        quickReplySuggestions?: string[];
+        sentiment?: string;
+      }>('/api/summarize-group', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -119,15 +125,16 @@ export const GroupManageModal: React.FC<GroupManageModalProps> = ({
           messages: messages.slice(-20),
         }),
       });
-      const data = await res.json();
       setAiSummary(data);
     } catch (e) {
       console.error(e);
       setAiSummary({
-        keyTakeaways: ['Group members discussed 3-ingredient toddler meals.', 'Keep foods separate in distinct piles on the plate.'],
-        actionItems: ['Stock up on bananas and sunbutter / seed butter'],
-        quickReplySuggestions: ['Sounds good!', 'Will try tonight!'],
-        sentiment: 'Calm & Supportive',
+        keyTakeaways: [
+          'AI summary unavailable. This is a built-in example, not an analysis of this conversation.',
+        ],
+        actionItems: [],
+        quickReplySuggestions: [],
+        sentiment: 'Not analyzed',
       });
     } finally {
       setSummarizing(false);

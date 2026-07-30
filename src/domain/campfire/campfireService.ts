@@ -10,8 +10,33 @@ import {
   TodayProjection,
 } from './types';
 
-// Proposed Actions Local In-Memory / Session Store
-let localProposals: ActionProposal[] = [];
+const STORAGE_KEY_PROPOSALS = 'bananagram_action_proposals_v1';
+
+function loadLocalProposals(): ActionProposal[] {
+  try {
+    if (typeof localStorage !== 'undefined') {
+      const raw = localStorage.getItem(STORAGE_KEY_PROPOSALS);
+      const parsed = raw ? JSON.parse(raw) : [];
+      return Array.isArray(parsed) ? parsed : [];
+    }
+  } catch {
+    // Fall through to isolated in-memory storage.
+  }
+  return [];
+}
+
+function persistLocalProposals(proposals: ActionProposal[]): void {
+  try {
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem(STORAGE_KEY_PROPOSALS, JSON.stringify(proposals));
+    }
+  } catch {
+    // Local capture remains available for this process even if storage is full.
+  }
+}
+
+// Proposals are device-local until an explicit supported authority command succeeds.
+let localProposals: ActionProposal[] = loadLocalProposals();
 
 export function getLocalProposals(): ActionProposal[] {
   return [...localProposals];
@@ -38,6 +63,7 @@ export function createActionProposal(
   };
 
   localProposals = [proposal, ...localProposals];
+  persistLocalProposals(localProposals);
   return proposal;
 }
 
@@ -49,6 +75,7 @@ export function confirmActionProposal(proposalId: string): ActionProposal | null
     ...localProposals[idx],
     status: 'confirmed',
   };
+  persistLocalProposals(localProposals);
 
   return localProposals[idx];
 }
@@ -85,7 +112,8 @@ export function buildTodayProjection(
   offers: BasketOffer[],
   receipts: WitnessReceipt[],
   kidProfile: KidProfile,
-  proposals: ActionProposal[] = localProposals
+  proposals: ActionProposal[] = localProposals,
+  currentUser?: { id: string; role: string }
 ): TodayProjection {
   // 1. WHAT NEEDS ATTENTION?
   const needsAttention: TodayAttentionItem[] = [];
@@ -103,6 +131,7 @@ export function buildTodayProjection(
           actionLabel: 'Pledge Support',
           seedId: sd.id,
           needId: nd.id,
+          canAct: currentUser?.role !== 'household',
         });
       }
     });
@@ -138,10 +167,11 @@ export function buildTodayProjection(
   // 2. WHAT CAN I DO?
   const canDo: TodayActionItem[] = [];
 
-  // Active Pledges
+  // Lifecycle actions. Shared records carry explicit authority IDs; local demo
+  // records retain the smaller pledge/confirm loop without pretending to be shared.
   seeds.forEach((sd) => {
     sd.needs.forEach((nd) => {
-      if (nd.status === 'pledged') {
+      if (nd.status === 'pledged' && !nd.authorityOfferId) {
         canDo.push({
           id: `cando-pledge-${sd.id}-${nd.id}`,
           type: 'active_pledge',
@@ -151,6 +181,57 @@ export function buildTodayProjection(
           actionLabel: 'Confirm Fulfillment',
           seedId: sd.id,
           needId: nd.id,
+        });
+      }
+
+      if (
+        nd.status === 'pledged' &&
+        nd.authorityOfferId &&
+        currentUser?.role === 'household'
+      ) {
+        canDo.push({
+          id: `cando-review-${nd.authorityOfferId}`,
+          type: 'review_offer',
+          title: `Review offer: ${nd.title}`,
+          subtitle: `${nd.pledgedBy || 'A neighbor'} offered support for “${sd.title}”`,
+          badge: 'Household authority',
+          actionLabel: 'Accept Offer',
+          seedId: sd.id,
+          offerId: nd.authorityOfferId,
+        });
+      }
+
+      if (
+        nd.status === 'accepted' &&
+        nd.authorityOfferId &&
+        nd.contributorId === currentUser?.id
+      ) {
+        canDo.push({
+          id: `cando-report-${nd.authorityOfferId}`,
+          type: 'report_fulfillment',
+          title: `Report delivery: ${nd.title}`,
+          subtitle: `Your accepted contribution to “${sd.title}” is ready to be reported`,
+          badge: 'Contributor action',
+          actionLabel: 'Report Fulfilled',
+          seedId: sd.id,
+          offerId: nd.authorityOfferId,
+        });
+      }
+
+      if (
+        nd.status === 'reported' &&
+        nd.authorityOfferId &&
+        currentUser?.role === 'household'
+      ) {
+        canDo.push({
+          id: `cando-confirm-${nd.authorityOfferId}`,
+          type: 'confirm_fulfillment',
+          title: `Confirm receipt: ${nd.title}`,
+          subtitle: `${nd.pledgedBy || 'A neighbor'} reported fulfillment for “${sd.title}”`,
+          badge: 'Human witness required',
+          actionLabel: 'Confirm Fulfillment',
+          seedId: sd.id,
+          offerId: nd.authorityOfferId,
         });
       }
     });

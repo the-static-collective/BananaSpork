@@ -41,7 +41,7 @@ export class ErrorBoundary extends React.Component<Props, State> {
             {this.state.error && (
               <div className="bg-red-50 border border-red-200 rounded-2xl p-3 text-left font-mono text-xs text-red-900 overflow-x-auto max-h-40">
                 <p className="font-bold">{this.state.error.name}: {this.state.error.message}</p>
-                {this.state.error.stack && (
+                {import.meta.env.DEV && this.state.error.stack && (
                   <pre className="text-[10px] opacity-80 mt-1 whitespace-pre-wrap">
                     {this.state.error.stack}
                   </pre>
@@ -58,15 +58,18 @@ export class ErrorBoundary extends React.Component<Props, State> {
               <button
                 onClick={() => {
                   try {
-                    localStorage.clear();
+                    const appPrefixes = ['bananagram_', 'jubilee_'];
+                    Object.keys(localStorage)
+                      .filter((key) => appPrefixes.some((prefix) => key.startsWith(prefix)))
+                      .forEach((key) => localStorage.removeItem(key));
                     window.location.reload();
-                  } catch (e) {
+                  } catch {
                     window.location.reload();
                   }
                 }}
                 className="w-full bg-amber-100 hover:bg-amber-200 text-amber-900 font-medium py-2 px-4 rounded-xl transition-all text-xs"
               >
-                Reset Local Storage & Reload
+                Reset Device-Local NanaSpork Data
               </button>
             </div>
           </div>

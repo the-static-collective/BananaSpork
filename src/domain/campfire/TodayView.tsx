@@ -26,8 +26,12 @@ interface TodayViewProps {
   kidProfile: KidProfile;
   proposals: ActionProposal[];
   runtimeMode: string;
+  currentUser: { id: string; role: string };
+  connectionPanel?: React.ReactNode;
   onPledgeNeed: (seedId: string, needId: string, pledgedBy: string) => void;
-  onConfirmFulfillment: (seedId: string, needId: string) => void;
+  onAcceptOffer: (offerId: string) => void;
+  onReportFulfillment: (offerId: string) => void;
+  onConfirmFulfillment: (seedId: string, offerId: string) => void;
   onConfirmProposal: (proposalId: string) => void;
   onOpenPantryRescue: () => void;
   onOpenUniversalComposer: () => void;
@@ -41,7 +45,11 @@ export const TodayView: React.FC<TodayViewProps> = ({
   kidProfile,
   proposals,
   runtimeMode,
+  currentUser,
+  connectionPanel,
   onPledgeNeed,
+  onAcceptOffer,
+  onReportFulfillment,
   onConfirmFulfillment,
   onConfirmProposal,
   onOpenPantryRescue,
@@ -53,25 +61,28 @@ export const TodayView: React.FC<TodayViewProps> = ({
     offers,
     receipts,
     kidProfile,
-    proposals
+    proposals,
+    currentUser
   );
 
   return (
     <div className="flex-1 bg-amber-50/60 overflow-y-auto p-3 sm:p-6 pb-24 md:pb-8 space-y-6 max-w-5xl mx-auto w-full">
+      {connectionPanel}
+
       {/* Header Banner */}
       <div className="bg-gradient-to-r from-amber-900 via-amber-950 to-amber-900 text-amber-50 p-4 sm:p-6 rounded-3xl border border-amber-800 shadow-md flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
           <div className="flex items-center space-x-2">
             <span className="text-2xl">🔥</span>
             <h2 className="font-extrabold text-xl sm:text-2xl text-amber-100">
-              Campfire Household Today
+              The Garden
             </h2>
             <span className="text-[10px] font-bold bg-amber-800 text-amber-200 px-2 py-0.5 rounded-full border border-amber-700">
               {runtimeMode === 'shared_campfire' ? 'Shared Circle' : 'This-Device Demo'}
             </span>
           </div>
           <p className="text-xs sm:text-sm text-amber-200 mt-1 font-medium max-w-xl">
-            Shame-free household read projection • Offer. Join. Remember.
+            The living record, made legible • lineage, tension, participation.
           </p>
         </div>
 
@@ -99,7 +110,7 @@ export const TodayView: React.FC<TodayViewProps> = ({
               className="font-extrabold text-amber-950 text-sm flex items-center space-x-2"
             >
               <AlertCircle className="w-4 h-4 text-amber-700 shrink-0" />
-              <span>1. What Needs Attention?</span>
+              <span>1. What Remains Unresolved?</span>
             </h3>
             <span className="text-[10px] font-bold bg-amber-100 text-amber-900 px-2 py-0.5 rounded-full">
               {projection.needsAttention.length} Items
@@ -152,7 +163,7 @@ export const TodayView: React.FC<TodayViewProps> = ({
                       <CheckCircle2 className="w-3.5 h-3.5 text-amber-300" />
                       <span>{item.actionLabel}</span>
                     </button>
-                  ) : item.type === 'open_need' && item.seedId && item.needId ? (
+                  ) : item.type === 'open_need' && item.seedId && item.needId && item.canAct !== false ? (
                     <button
                       onClick={() => onPledgeNeed(item.seedId!, item.needId!, 'Local Member (You)')}
                       className="w-full py-2 px-3 rounded-xl bg-amber-900 hover:bg-amber-950 text-amber-50 font-extrabold text-xs transition flex items-center justify-center space-x-1.5 min-h-[44px] cursor-pointer"
@@ -178,7 +189,7 @@ export const TodayView: React.FC<TodayViewProps> = ({
               className="font-extrabold text-amber-950 text-sm flex items-center space-x-2"
             >
               <Sparkles className="w-4 h-4 text-amber-700 shrink-0" />
-              <span>2. What Can I Do?</span>
+              <span>2. Where Can I Participate Next?</span>
             </h3>
             <span className="text-[10px] font-bold bg-amber-100 text-amber-900 px-2 py-0.5 rounded-full">
               {projection.canDo.length} Actions
@@ -210,6 +221,30 @@ export const TodayView: React.FC<TodayViewProps> = ({
                     className="w-full py-2 px-3 rounded-xl bg-emerald-800 hover:bg-emerald-900 text-emerald-50 font-extrabold text-xs transition flex items-center justify-center space-x-1.5 min-h-[44px] cursor-pointer"
                   >
                     <CheckCircle2 className="w-3.5 h-3.5 text-emerald-300" />
+                    <span>{item.actionLabel}</span>
+                  </button>
+                ) : item.type === 'review_offer' && item.offerId ? (
+                  <button
+                    onClick={() => onAcceptOffer(item.offerId!)}
+                    className="w-full py-2 px-3 rounded-xl bg-amber-900 hover:bg-amber-950 text-amber-50 font-extrabold text-xs transition flex items-center justify-center space-x-1.5 min-h-[44px] cursor-pointer"
+                  >
+                    <CheckCircle2 className="w-3.5 h-3.5 text-amber-300" />
+                    <span>{item.actionLabel}</span>
+                  </button>
+                ) : item.type === 'report_fulfillment' && item.offerId ? (
+                  <button
+                    onClick={() => onReportFulfillment(item.offerId!)}
+                    className="w-full py-2 px-3 rounded-xl bg-emerald-800 hover:bg-emerald-900 text-emerald-50 font-extrabold text-xs transition flex items-center justify-center space-x-1.5 min-h-[44px] cursor-pointer"
+                  >
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-300" />
+                    <span>{item.actionLabel}</span>
+                  </button>
+                ) : item.type === 'confirm_fulfillment' && item.seedId && item.offerId ? (
+                  <button
+                    onClick={() => onConfirmFulfillment(item.seedId!, item.offerId!)}
+                    className="w-full py-2 px-3 rounded-xl bg-emerald-800 hover:bg-emerald-900 text-emerald-50 font-extrabold text-xs transition flex items-center justify-center space-x-1.5 min-h-[44px] cursor-pointer"
+                  >
+                    <ShieldAlert className="w-3.5 h-3.5 text-emerald-300" />
                     <span>{item.actionLabel}</span>
                   </button>
                 ) : item.type === 'available_offer' ? (
@@ -245,7 +280,7 @@ export const TodayView: React.FC<TodayViewProps> = ({
               className="font-extrabold text-amber-950 text-sm flex items-center space-x-2"
             >
               <Clock className="w-4 h-4 text-amber-700 shrink-0" />
-              <span>3. What Changed?</span>
+              <span>3. How Did This Become What It Is?</span>
             </h3>
             <span className="text-[10px] font-bold bg-amber-100 text-amber-900 px-2 py-0.5 rounded-full">
               {projection.whatChanged.length} Updates

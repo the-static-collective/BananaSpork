@@ -107,7 +107,18 @@ export interface SeedNeed {
   title: string;
   category: BasketCategory;
   pledgedBy?: string;
-  status: 'open' | 'pledged' | 'confirmed' | 'fulfilled' | 'closed';
+  contributorId?: string;
+  authorityNeedId?: string;
+  authorityOfferId?: string;
+  status:
+    | 'open'
+    | 'pledged'
+    | 'accepted'
+    | 'reported'
+    | 'confirmed'
+    | 'declined'
+    | 'fulfilled'
+    | 'closed';
 }
 
 export interface ParticipationSeed {
@@ -147,4 +158,3 @@ export interface WitnessReceipt {
   timestamp: string;
   details: string;
 }
-

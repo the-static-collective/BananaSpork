@@ -5,6 +5,7 @@ import { PhotoAlbumItem, WitnessReceipt } from '../../types';
 interface RememberViewProps {
   receipts: WitnessReceipt[];
   photos?: PhotoAlbumItem[];
+  runtimeMode: 'shared_campfire' | 'this_device_demo';
   onOpenUniversalComposer: () => void;
   onOpenPhotoAlbum: () => void;
   onOpenJubileeHub: () => void;
@@ -13,6 +14,7 @@ interface RememberViewProps {
 export const RememberView: React.FC<RememberViewProps> = ({
   receipts,
   photos = [],
+  runtimeMode,
   onOpenUniversalComposer,
   onOpenPhotoAlbum,
   onOpenJubileeHub,
@@ -25,11 +27,15 @@ export const RememberView: React.FC<RememberViewProps> = ({
           <div className="flex items-center space-x-2">
             <Scroll className="w-6 h-6 text-amber-300" />
             <h2 className="font-extrabold text-xl sm:text-2xl text-amber-100">
-              Remember: Confirmed History & Memories
+              {runtimeMode === 'shared_campfire'
+                ? 'Remember: Shared History'
+                : 'Remember: This-Device Activity'}
             </h2>
           </div>
           <p className="text-xs sm:text-sm text-amber-200 mt-1 font-medium">
-            Jubilee Witness Ledger receipts and photo moments — authority built on confirmed acts.
+            {runtimeMode === 'shared_campfire'
+              ? 'Authenticated witness receipts reconstructed from accessible Campfire history.'
+              : 'Local activity and photo moments. These are not shared or chain-verified.'}
           </p>
         </div>
 
@@ -57,7 +63,10 @@ export const RememberView: React.FC<RememberViewProps> = ({
         <div className="flex items-center justify-between">
           <h3 className="font-extrabold text-amber-950 text-sm flex items-center space-x-1.5">
             <ShieldCheck className="w-4 h-4 text-amber-700" />
-            <span>Confirmed Witness Receipts ({receipts.length})</span>
+            <span>
+              {runtimeMode === 'shared_campfire' ? 'Witness Receipts' : 'Device Activity Records'} (
+              {receipts.length})
+            </span>
           </h3>
           <button
             onClick={onOpenJubileeHub}
