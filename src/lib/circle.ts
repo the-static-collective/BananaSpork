@@ -129,7 +129,11 @@ export function projectNeeds(events: EventRow[]): NeedProjection[] {
         break;
       case 'need.closed': {
         const n = needs.get(e.aggregate_id);
-        if (n) n.status = 'closed';
+        if (n) {
+          // Closing a fully confirmed need records finality; it does not turn a
+          // completed harvest into compost.
+          n.status = n.confirmedUnits >= n.targetUnits ? 'fulfilled' : 'closed';
+        }
         break;
       }
       case 'offer.pledged':

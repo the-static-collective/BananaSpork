@@ -7,7 +7,6 @@ import {
   RuntimeMode,
 } from './contracts';
 import {
-  fetchMyMemberships,
   fetchCircleEvents,
   fetchCircleHead,
   projectNeeds,
@@ -27,13 +26,75 @@ import {
   createInvitation,
   redeemInvitation,
 } from '../../lib/rpc.functions';
+import { supabasePublicConfig } from '../../integrations/supabase/config';
+
+export function projectSharedOffers(needs: NeedProjection[]): BasketOffer[] {
+  return needs.flatMap((need) =>
+    need.offers.map((offer) => ({
+      id: offer.offerId,
+      title: offer.label,
+      category: 'Care' as const,
+      contributorName: offer.contributorLabel,
+      availability: offer.status,
+      boundary: 'Shared Campfire',
+      icon: '🌱',
+      timestamp: offer.reportedAt || offer.confirmedAt || need.createdAt,
+    }))
+  );
+}
+
+export function projectSharedSeeds(needs: NeedProjection[]): ParticipationSeed[] {
+  return needs.map((need) => ({
+    id: need.needId,
+    title: need.title,
+    stage:
+      need.status === 'fulfilled'
+        ? 'Harvest'
+        : need.status === 'closed'
+          ? 'Compost'
+          : need.offers.length > 0
+            ? 'Growing'
+            : 'Seed',
+    authorName: need.householdLabel,
+    description: need.summary,
+    needs: [
+      {
+        id: need.needId,
+        authorityNeedId: need.needId,
+        title: `${need.targetUnits} ${need.unitLabel}`,
+        category: 'Care',
+        status:
+          need.status === 'fulfilled'
+            ? 'fulfilled'
+            : need.status === 'closed'
+              ? 'closed'
+              : 'open',
+      },
+      ...need.offers.map((offer) => ({
+        id: offer.offerId,
+        authorityNeedId: need.needId,
+        authorityOfferId: offer.offerId,
+        contributorId: offer.contributorId,
+        title: offer.label,
+        category: 'Care' as const,
+        pledgedBy: offer.contributorLabel,
+        status: offer.status,
+      })),
+    ],
+    makesPossible: need.requestedItems.length > 0 ? need.requestedItems : [need.unitLabel],
+    graftsCount: need.offers.length,
+    harvestsCount: need.confirmedUnits,
+    timestamp: need.createdAt,
+  }));
+}
 
 export class SupabaseJubileeGateway implements JubileeGateway {
   private currentUser: JubileeCurrentUser;
   private listeners: Set<(state: JubileeState) => void> = new Set();
-  private supabaseUrl?: string;
-  private supabaseAnonKey?: string;
   private activeCircleId?: string;
+  private offers: BasketOffer[] = [];
+  private seeds: ParticipationSeed[] = [];
+  private receipts: WitnessReceipt[] = [];
 
   constructor(currentUser?: JubileeCurrentUser) {
     this.currentUser = currentUser || {
@@ -42,11 +103,6 @@ export class SupabaseJubileeGateway implements JubileeGateway {
       role: 'Member',
     };
 
-    const meta = import.meta as Record<string, any>;
-    if (typeof meta !== 'undefined' && meta.env) {
-      this.supabaseUrl = meta.env.VITE_SUPABASE_URL;
-      this.supabaseAnonKey = meta.env.VITE_SUPABASE_ANON_KEY || meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
-    }
   }
 
   public getRuntimeMode(): RuntimeMode {
@@ -54,15 +110,15 @@ export class SupabaseJubileeGateway implements JubileeGateway {
   }
 
   public isConfigured(): boolean {
-    return Boolean(this.supabaseUrl && this.supabaseAnonKey);
+    return supabasePublicConfig.configured;
   }
 
   public getState(): JubileeState {
     return {
       runtimeMode: this.getRuntimeMode(),
-      offers: [],
-      seeds: [],
-      receipts: [],
+      offers: [...this.offers],
+      seeds: [...this.seeds],
+      receipts: [...this.receipts],
       currentUser: { ...this.currentUser },
     };
   }
@@ -79,8 +135,13 @@ export class SupabaseJubileeGateway implements JubileeGateway {
     this.notify();
   }
 
-  public setActiveCircleId(circleId: string): void {
+  public setActiveCircleId(circleId?: string): void {
+    if (circleId === this.activeCircleId) return;
     this.activeCircleId = circleId;
+    this.offers = [];
+    this.seeds = [];
+    this.receipts = [];
+    this.notify();
   }
 
   public getActiveCircleId(): string | undefined {
@@ -92,87 +153,52 @@ export class SupabaseJubileeGateway implements JubileeGateway {
       return { needs: [], receipts: [] };
     }
 
-    try {
-      const events = await fetchCircleEvents(this.activeCircleId);
-      const needs = projectNeeds(events);
+    const events = await fetchCircleEvents(this.activeCircleId);
+    const needs = projectNeeds(events);
 
-      const receipts: WitnessReceipt[] = events.map((e) => ({
-        id: e.event_id,
-        sequence: e.sequence,
-        sha256Hash: e.event_hash,
-        predecessorHash: e.previous_hash,
-        actorName: e.actor_label,
-        eventType: (e.kind as WitnessEventType) || 'receipt.witnessed',
-        title: (e.payload as any)?.title || e.kind,
-        timestamp: e.occurred_at_text,
-        details: (e.payload as any)?.summary || (e.payload as any)?.note || e.kind,
-      }));
+    const receipts: WitnessReceipt[] = events.map((e) => ({
+      id: e.event_id,
+      sequence: e.sequence,
+      sha256Hash: e.event_hash,
+      predecessorHash: e.previous_hash,
+      actorName: e.actor_label,
+      eventType: (e.kind as WitnessEventType) || 'receipt.witnessed',
+      title: (e.payload as any)?.title || e.kind,
+      timestamp: e.occurred_at_text,
+      details: (e.payload as any)?.summary || (e.payload as any)?.note || e.kind,
+    }));
 
-      return { needs, receipts };
-    } catch (err: any) {
-      console.error('[SupabaseJubileeGateway] Error fetching circle projections:', err);
-      return { needs: [], receipts: [] };
-    }
+    return { needs, receipts };
   }
 
   public async getOffers(): Promise<BasketOffer[]> {
-    if (!this.isConfigured()) {
-      return [];
-    }
-    const { needs } = await this.getProjections();
-    const offers: BasketOffer[] = [];
-
-    for (const n of needs) {
-      for (const o of n.offers) {
-        offers.push({
-          id: o.offerId,
-          title: o.label,
-          category: (o.kind as any) || 'Care',
-          contributorName: o.contributorLabel,
-          availability: o.status,
-          boundary: 'Circle',
-          icon: '🌱',
-          timestamp: o.reportedAt || o.confirmedAt || 'Recently',
-        });
-      }
-    }
-
-    return offers;
+    return [...this.offers];
   }
 
   public async getSeeds(): Promise<ParticipationSeed[]> {
-    if (!this.isConfigured()) {
-      return [];
-    }
-    const { needs } = await this.getProjections();
-
-    return needs.map((n) => ({
-      id: n.needId,
-      title: n.title,
-      stage: n.status === 'fulfilled' ? 'Harvest' : 'Seed',
-      authorName: n.householdLabel,
-      description: n.summary,
-      needs: [
-        {
-          id: n.needId,
-          title: `${n.targetUnits} ${n.unitLabel}`,
-          category: 'Care',
-          status: n.status === 'fulfilled' ? 'fulfilled' : 'open',
-        },
-      ],
-      makesPossible: [n.unitLabel],
-      graftsCount: n.offers.length,
-      harvestsCount: n.confirmedUnits,
-      timestamp: n.createdAt,
-    }));
+    return [...this.seeds];
   }
 
   public async getReceipts(): Promise<WitnessReceipt[]> {
-    if (!this.isConfigured()) {
-      return [];
+    return [...this.receipts];
+  }
+
+  public async refresh(): Promise<void> {
+    if (!this.isConfigured() || !this.activeCircleId) {
+      this.offers = [];
+      this.seeds = [];
+      this.receipts = [];
+      this.notify();
+      return;
     }
-    const { receipts } = await this.getProjections();
-    return receipts;
+
+    const { needs, receipts } = await this.getProjections();
+
+    this.offers = projectSharedOffers(needs);
+    this.seeds = projectSharedSeeds(needs);
+
+    this.receipts = receipts;
+    this.notify();
   }
 
   public subscribe(listener: (state: JubileeState) => void): () => void {
@@ -390,42 +416,57 @@ export class SupabaseJubileeGateway implements JubileeGateway {
     return redeemInvitation(token);
   }
 
-  public async acceptPledgedOffer(offerId: string): Promise<any> {
-    if (!this.activeCircleId) throw new Error('No active circle set');
-    const head = await fetchCircleHead(this.activeCircleId);
-    const idemKey = newIdempotencyKey('accept_offer');
-    return acceptOffer({
-      circleId: this.activeCircleId,
-      expectedHead: head.head_hash,
-      idempotencyKey: idemKey,
-      offerId,
-    });
+  public async acceptPledgedOffer(offerId: string): Promise<CommandResult> {
+    try {
+      if (!this.activeCircleId) throw new Error('No active circle set');
+      const head = await fetchCircleHead(this.activeCircleId);
+      const idemKey = newIdempotencyKey('accept_offer');
+      await acceptOffer({
+        circleId: this.activeCircleId,
+        expectedHead: head.head_hash,
+        idempotencyKey: idemKey,
+        offerId,
+      });
+      return { success: true };
+    } catch (error: any) {
+      return { success: false, error: error.message || 'Failed to accept offer.' };
+    }
   }
 
-  public async declinePledgedOffer(offerId: string, reason?: string): Promise<any> {
-    if (!this.activeCircleId) throw new Error('No active circle set');
-    const head = await fetchCircleHead(this.activeCircleId);
-    const idemKey = newIdempotencyKey('decline_offer');
-    return declineOffer({
-      circleId: this.activeCircleId,
-      expectedHead: head.head_hash,
-      idempotencyKey: idemKey,
-      offerId,
-      reason,
-    });
+  public async declinePledgedOffer(offerId: string, reason?: string): Promise<CommandResult> {
+    try {
+      if (!this.activeCircleId) throw new Error('No active circle set');
+      const head = await fetchCircleHead(this.activeCircleId);
+      const idemKey = newIdempotencyKey('decline_offer');
+      await declineOffer({
+        circleId: this.activeCircleId,
+        expectedHead: head.head_hash,
+        idempotencyKey: idemKey,
+        offerId,
+        reason,
+      });
+      return { success: true };
+    } catch (error: any) {
+      return { success: false, error: error.message || 'Failed to decline offer.' };
+    }
   }
 
-  public async reportFulfillmentAction(offerId: string, note?: string): Promise<any> {
-    if (!this.activeCircleId) throw new Error('No active circle set');
-    const head = await fetchCircleHead(this.activeCircleId);
-    const idemKey = newIdempotencyKey('report_fulfillment');
-    return reportFulfillment({
-      circleId: this.activeCircleId,
-      expectedHead: head.head_hash,
-      idempotencyKey: idemKey,
-      offerId,
-      note,
-    });
+  public async reportFulfillmentAction(offerId: string, note?: string): Promise<CommandResult> {
+    try {
+      if (!this.activeCircleId) throw new Error('No active circle set');
+      const head = await fetchCircleHead(this.activeCircleId);
+      const idemKey = newIdempotencyKey('report_fulfillment');
+      await reportFulfillment({
+        circleId: this.activeCircleId,
+        expectedHead: head.head_hash,
+        idempotencyKey: idemKey,
+        offerId,
+        note,
+      });
+      return { success: true };
+    } catch (error: any) {
+      return { success: false, error: error.message || 'Failed to report fulfillment.' };
+    }
   }
 
   public async closeNeedAction(needId: string, reason: string): Promise<any> {

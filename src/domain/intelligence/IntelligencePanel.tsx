@@ -19,6 +19,7 @@ import {
   NearbyGrowthPreviewItem,
   WhatChangedReport,
 } from './types';
+import { apiJson } from '../../lib/api';
 
 interface IntelligencePanelProps {
   receipts: WitnessReceipt[];
@@ -39,6 +40,9 @@ export const IntelligencePanel: React.FC<IntelligencePanelProps> = ({
   const [optInAiSummary, setOptInAiSummary] = useState<boolean>(false);
   const [loadingSummary, setLoadingSummary] = useState<boolean>(false);
   const [aiClaims, setAiClaims] = useState<{ claim: string; sourceId: string }[] | null>(null);
+  const [summarySource, setSummarySource] = useState<
+    'gemini' | 'deterministic_fallback'
+  >();
   const [highlightedReceiptId, setHighlightedReceiptId] = useState<string | null>(null);
 
   // Packet state for Nearby Growth Preview
@@ -64,25 +68,30 @@ export const IntelligencePanel: React.FC<IntelligencePanelProps> = ({
   const handleFetchAiSummary = async () => {
     setLoadingSummary(true);
     setOptInAiSummary(true);
+    setSummarySource(undefined);
     try {
-      const res = await fetch('/api/intelligence/summarize-changes', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ receipts }),
-      });
-      const data = await res.json();
+      const data = await apiJson<{ claims?: { claim: string; sourceId: string }[] }>(
+        '/api/intelligence/summarize-changes',
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ receipts }),
+        }
+      );
       if (data && Array.isArray(data.claims)) {
         setAiClaims(data.claims);
+        setSummarySource('gemini');
       }
     } catch (err) {
       console.error('Failed to fetch AI summary:', err);
-      // Fallback
+      // Receipt-derived fallback is useful, but it must not impersonate Gemini.
       setAiClaims(
         receipts.slice(0, 3).map((r) => ({
           claim: `${r.actorName} recorded ${r.title}: ${r.details}`,
           sourceId: r.id,
         }))
       );
+      setSummarySource('deterministic_fallback');
     } finally {
       setLoadingSummary(false);
     }
@@ -178,10 +187,16 @@ export const IntelligencePanel: React.FC<IntelligencePanelProps> = ({
               <div className="flex items-center justify-between">
                 <span className="text-xs font-extrabold text-amber-950 uppercase tracking-wider flex items-center space-x-1.5">
                   <Sparkles className="w-3.5 h-3.5 text-amber-700" />
-                  <span>Gemini What Changed Summary (Opt-In)</span>
+                  <span>
+                    {summarySource === 'deterministic_fallback'
+                      ? 'Receipt-Derived Fallback Summary'
+                      : 'Gemini What Changed Summary (Opt-In)'}
+                  </span>
                 </span>
                 <span className="text-[10px] bg-amber-200 text-amber-900 px-2 py-0.5 rounded-full font-bold">
-                  Every claim links to source
+                  {summarySource === 'deterministic_fallback'
+                    ? 'AI unavailable · not model output'
+                    : 'Every claim links to source'}
                 </span>
               </div>
 

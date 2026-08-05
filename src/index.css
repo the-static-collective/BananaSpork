@@ -1,5 +1,29 @@
 @import "tailwindcss";
 
+:root {
+  color-scheme: light;
+  background: #fffbeb;
+}
+
+html,
+body,
+#root {
+  width: 100%;
+  min-height: 100%;
+  margin: 0;
+  overscroll-behavior: none;
+}
+
+.app-shell {
+  height: 100vh;
+  height: 100dvh;
+  padding-top: env(safe-area-inset-top, 0);
+}
+
+.native-bottom-nav {
+  padding-bottom: max(0.25rem, env(safe-area-inset-bottom, 0));
+}
+
 @layer utilities {
   /* Hide scrollbar for Chrome, Safari and Opera */
   .no-scrollbar::-webkit-scrollbar {

@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">BananaGram</string>
-    <string name="title_activity_main">BananaGram</string>
-    <string name="package_name">collective.static.bananagram</string>
-    <string name="custom_url_scheme">collective.static.bananagram</string>
+    <string name="app_name">NanaSpork</string>
+    <string name="title_activity_main">NanaSpork</string>
+    <string name="package_name">collective.app.bananagram</string>
+    <string name="custom_url_scheme">collective.app.bananagram</string>
 </resources>

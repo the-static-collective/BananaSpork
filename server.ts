@@ -9,8 +9,43 @@ dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
+const nativeApiOrigins = new Set(
+  (process.env.NATIVE_API_ORIGINS || 'https://localhost,capacitor://localhost')
+    .split(',')
+    .map((origin) => origin.trim())
+    .filter(Boolean)
+);
 
 app.use(express.json({ limit: '10mb' }));
+app.disable('x-powered-by');
+
+app.use((_req, res, next) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('Referrer-Policy', 'same-origin');
+  next();
+});
+
+// Capacitor serves bundled Android files from https://localhost. Permit only
+// explicitly named native origins to call the remote /api surface; web remains
+// same-origin and needs no wildcard CORS policy.
+app.use('/api', (req, res, next) => {
+  const origin = req.get('origin');
+  if (origin && nativeApiOrigins.has(origin)) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+    res.setHeader('Vary', 'Origin');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  }
+
+  if (req.method === 'OPTIONS') {
+    if (!origin || !nativeApiOrigins.has(origin)) {
+      return res.status(403).json({ error: 'Origin is not permitted.' });
+    }
+    return res.sendStatus(204);
+  }
+
+  next();
+});
 
 // 0. Minimal health check endpoint
 app.get('/health', (_req, res) => {
@@ -43,12 +78,14 @@ const BANANA_BOT_SYSTEM_INSTRUCTION = `You are BananaBot 🍌, the world's most 
 Your mission is to support overwhelmed, tired, or stressed parents/moms who need immediate, zero-frustration solutions for feeding toddlers and kids.
 
 Tone & Style Principles:
-1. EXTREMELY empathetic, calming, friendly, and practical. Speak like a loving best friend who is also a toddler nutrition expert.
+1. EXTREMELY empathetic, calming, friendly, and practical. You are a supportive meal-planning assistant, not a medical professional.
 2. ZERO parental guilt. Validate how hard parenting is.
 3. Keep answers concise, highly scannable (bullet points, bold text, step numbers).
 4. Provide immediate actionable meal ideas with 3 ingredients or fewer when requested.
 5. Offer sensory hacks for picky eaters (e.g., dipping sauces, fun shape cutting, "deconstructed" presentation, color rules, "no touching" plates).
 6. CRITICAL ALLERGY SAFETY RULE: ALWAYS inspect the child's allergy list (e.g. kidProfile.allergies). NEVER recommend peanuts, tree nuts, or peanut butter if "Peanuts" or "Tree Nuts" are in the child's allergy profile! Always suggest safe alternatives like Sunflower Seed Butter (Sunbutter), Tahini, Cream Cheese, Ricotta, or Avocado.
+7. Never claim a food is "100% safe." Remind the caregiver to use only foods already known to be safe and to check labels and their child's allergy plan.
+8. Never diagnose or make unsupported physiological claims. For trouble breathing or swallowing, sudden swelling, fainting, or suspected anaphylaxis, tell the caregiver to follow the child's emergency allergy plan, use prescribed epinephrine, and contact emergency services immediately.
 
 When giving a recipe or rescue idea, format cleanly with:
 - 🍌 **Name**: Catchy kid-friendly name
@@ -117,8 +154,8 @@ app.post('/api/chat', async (req, res) => {
     console.error('Error in /api/chat:', err);
     res.status(500).json({
       error: 'Failed to process response',
-      details: err.message,
-      fallbackReply: "🍌 *BananaBot glitch!* Don't worry, mom! Quick fix: Banana slices + sunbutter / seed butter + a pinch of hemp seeds or crushed crackers. You're doing great!",
+      ...(process.env.NODE_ENV !== 'production' ? { details: err.message } : {}),
+      fallbackReply: "🍌 BananaBot couldn't reach the AI service. Try a small deconstructed plate using only foods already known to be safe for your child, and check every label against their allergy plan.",
     });
   }
 });
@@ -165,7 +202,7 @@ Respond in valid JSON with this exact structure:
     console.error('Error in /api/pantry-rescue:', err);
     res.status(500).json({
       error: 'Pantry rescue error',
-      details: err.message,
+      ...(process.env.NODE_ENV !== 'production' ? { details: err.message } : {}),
       ideas: [
         {
           id: 'fb-1',
@@ -224,17 +261,17 @@ Respond in JSON:
         {
           title: "The Cold Crunch Reset",
           prepTime: "30 seconds",
-          whyItWorks: "Cold temperature + crunch activates the vagus nerve and interrupts screaming.",
+          whyItWorks: "A familiar cold or crunchy food can offer a simple sensory focus without pressure.",
           howToServe: "Hand over a cold cucumber spear, frozen berry, or crunchy cracker silently with zero pressure to eat."
         },
         {
           title: "Dipping Station",
           prepTime: "1 minute",
-          whyItWorks: "Dipping gives toddlers a sense of control and playfulness.",
+          whyItWorks: "Dipping can offer a predictable choice and a low-pressure way to engage.",
           howToServe: "Put 2 spoonfuls of yogurt or hummus in a small bowl with pretzel sticks or banana coins."
         }
       ],
-      sensoryTrick: "Give them a fun straw in a tiny glass of ice water. Sucking through a straw releases endorphins and calms nervous system arousal!"
+      sensoryTrick: "Reduce stimulation, use a calm voice, and offer a familiar quiet spot. Do not force food or drink."
     });
   }
 });
@@ -515,7 +552,7 @@ Respond in valid JSON format:
 });
 
 async function startServer() {
-  const distPath = path.join(process.cwd(), 'dist');
+  const distPath = path.join(process.cwd(), 'dist', 'client');
   const distIndexExists = fs.existsSync(path.join(distPath, 'index.html'));
 
   if (!distIndexExists && process.env.NODE_ENV !== 'production') {

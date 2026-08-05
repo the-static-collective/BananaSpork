@@ -287,18 +287,25 @@ export const JubileeHubModal: React.FC<JubileeHubModalProps> = ({
                   </p>
                 </div>
 
-                <button
-                  onClick={() => setShowOfferForm(!showOfferForm)}
-                  className="bg-amber-900 hover:bg-amber-950 text-amber-50 font-extrabold text-xs px-3 py-2 rounded-xl shadow-xs transition flex items-center space-x-1.5 cursor-pointer"
-                  id="add-new-offer-btn"
-                >
-                  <Plus className="w-4 h-4" />
-                  <span>+ Offer Something</span>
-                </button>
+                {runtimeMode === 'this_device_demo' ? (
+                  <button
+                    onClick={() => setShowOfferForm(!showOfferForm)}
+                    className="bg-amber-900 hover:bg-amber-950 text-amber-50 font-extrabold text-xs px-3 py-2 rounded-xl shadow-xs transition flex items-center space-x-1.5 cursor-pointer"
+                    id="add-new-offer-btn"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span>+ Local Offer</span>
+                  </button>
+                ) : (
+                  <span className="max-w-56 rounded-xl bg-amber-200 px-3 py-2 text-[10px] font-bold text-amber-900">
+                    Shared offers begin as pledges to an open need. Use Garden for the
+                    role-gated action.
+                  </span>
+                )}
               </div>
 
               {/* Offer Creation Form */}
-              {showOfferForm && (
+              {showOfferForm && runtimeMode === 'this_device_demo' && (
                 <div className="bg-white p-4 rounded-2xl border-2 border-amber-400 shadow-md space-y-3">
                   <h5 className="font-extrabold text-amber-950 text-xs uppercase tracking-wide">
                     Create New Basket Offer:
@@ -458,22 +465,31 @@ export const JubileeHubModal: React.FC<JubileeHubModalProps> = ({
                     <span>Possibility Seeds & Open Needs</span>
                   </h4>
                   <p className="text-xs text-amber-800 font-medium mt-0.5">
-                    See what community projects are growing. Pledge skills or materials to fulfill open needs.
+                    {runtimeMode === 'shared_campfire'
+                      ? 'Inspect durable needs and offer states here. Garden exposes only the actions authorized for this account.'
+                      : 'See what may grow on this device and try the local pledge loop.'}
                   </p>
                 </div>
 
-                <button
-                  onClick={() => setShowSeedForm(!showSeedForm)}
-                  className="bg-amber-900 hover:bg-amber-950 text-amber-50 font-extrabold text-xs px-3 py-2 rounded-xl shadow-xs transition flex items-center space-x-1.5 cursor-pointer"
-                  id="open-seed-form-btn"
-                >
-                  <Plus className="w-4 h-4" />
-                  <span>+ Plant a Seed</span>
-                </button>
+                {runtimeMode === 'this_device_demo' ? (
+                  <button
+                    onClick={() => setShowSeedForm(!showSeedForm)}
+                    className="bg-amber-900 hover:bg-amber-950 text-amber-50 font-extrabold text-xs px-3 py-2 rounded-xl shadow-xs transition flex items-center space-x-1.5 cursor-pointer"
+                    id="open-seed-form-btn"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span>+ Local Seed</span>
+                  </button>
+                ) : (
+                  <span className="max-w-56 rounded-xl bg-amber-200 px-3 py-2 text-[10px] font-bold text-amber-900">
+                    Shared creation starts as a Garden proposal and succeeds only through
+                    an authority command.
+                  </span>
+                )}
               </div>
 
               {/* Seed Creation Form */}
-              {showSeedForm && (
+              {showSeedForm && runtimeMode === 'this_device_demo' && (
                 <div className="bg-white p-4 rounded-2xl border-2 border-amber-400 shadow-md space-y-3">
                   <h5 className="font-extrabold text-amber-950 text-xs uppercase tracking-wide">
                     Plant a Possibility Seed:
@@ -590,9 +606,9 @@ export const JubileeHubModal: React.FC<JubileeHubModalProps> = ({
                             className="p-2 rounded-xl bg-amber-50 border border-amber-200/80 flex items-center justify-between text-xs"
                           >
                             <div className="flex items-center space-x-2">
-                              {nd.status === 'confirmed' ? (
+                              {nd.status === 'confirmed' || nd.status === 'fulfilled' ? (
                                 <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                              ) : nd.status === 'pledged' ? (
+                              ) : ['pledged', 'accepted', 'reported'].includes(nd.status) ? (
                                 <Clock className="w-4 h-4 text-amber-600 shrink-0" />
                               ) : (
                                 <Package className="w-4 h-4 text-amber-800 shrink-0" />
@@ -604,13 +620,13 @@ export const JubileeHubModal: React.FC<JubileeHubModalProps> = ({
                             </div>
 
                             <div className="flex items-center space-x-1.5">
-                              {nd.status === 'confirmed' && (
+                              {(nd.status === 'confirmed' || nd.status === 'fulfilled') && (
                                 <span className="text-[10px] font-extrabold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-md">
-                                  Fulfilled by {nd.pledgedBy}
+                                  Fulfilled{nd.pledgedBy ? ` by ${nd.pledgedBy}` : ''}
                                 </span>
                               )}
 
-                              {nd.status === 'pledged' && (
+                              {runtimeMode === 'this_device_demo' && nd.status === 'pledged' && (
                                 <button
                                   onClick={() => onConfirmFulfillment(seed.id, nd.id)}
                                   className="px-2 py-1 bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-[10px] rounded-lg transition"
@@ -619,7 +635,7 @@ export const JubileeHubModal: React.FC<JubileeHubModalProps> = ({
                                 </button>
                               )}
 
-                              {nd.status === 'open' && (
+                              {runtimeMode === 'this_device_demo' && nd.status === 'open' && (
                                 <button
                                   onClick={() => onPledgeNeed(seed.id, nd.id, currentUserName)}
                                   className="px-2.5 py-1 bg-amber-900 hover:bg-amber-950 text-amber-50 font-bold text-[10px] rounded-lg transition"
@@ -627,6 +643,14 @@ export const JubileeHubModal: React.FC<JubileeHubModalProps> = ({
                                   Pledge
                                 </button>
                               )}
+
+                              {runtimeMode === 'shared_campfire' &&
+                                nd.status !== 'confirmed' &&
+                                nd.status !== 'fulfilled' && (
+                                  <span className="rounded-md bg-amber-200 px-2 py-0.5 text-[10px] font-extrabold capitalize text-amber-900">
+                                    {nd.status.replace('_', ' ')}
+                                  </span>
+                                )}
                             </div>
                           </div>
                         ))}

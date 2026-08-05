@@ -112,7 +112,94 @@ async function runCampfireTests() {
 
   assert(projection.canDo.length > 0, 'Today projection includes Can Do actions');
 
-  // Test 4: Private held Donkey notes visibility in Today projection
+  // Test 4: Shared lifecycle actions retain role and authority-ID boundaries
+  const sharedLifecycleSeed: ParticipationSeed = {
+    ...mockSeeds[0],
+    needs: [
+      {
+        id: 'need-1',
+        authorityNeedId: 'need-1',
+        title: 'Soup delivery',
+        category: 'Care',
+        status: 'open',
+      },
+      {
+        id: 'offer-1',
+        authorityNeedId: 'need-1',
+        authorityOfferId: 'offer-1',
+        contributorId: 'neighbor-1',
+        title: 'One pot of soup',
+        category: 'Care',
+        pledgedBy: 'Neighbor',
+        status: 'pledged',
+      },
+    ],
+  };
+
+  const householdProjection = buildTodayProjection(
+    [sharedLifecycleSeed],
+    [],
+    [],
+    mockProfile,
+    [],
+    { id: 'household-1', role: 'household' }
+  );
+  assert(
+    householdProjection.needsAttention
+      .filter((item) => item.type === 'open_need')
+      .every((item) => item.canAct === false),
+    'Household-role users are not offered the forbidden pledge action'
+  );
+  assert(
+    householdProjection.canDo.some(
+      (item) => item.type === 'review_offer' && item.offerId === 'offer-1'
+    ),
+    'Household-role users receive the exact offer ID for acceptance'
+  );
+
+  const acceptedLifecycleSeed: ParticipationSeed = {
+    ...sharedLifecycleSeed,
+    needs: sharedLifecycleSeed.needs.map((need) =>
+      need.authorityOfferId ? { ...need, status: 'accepted' as const } : need
+    ),
+  };
+  const contributorProjection = buildTodayProjection(
+    [acceptedLifecycleSeed],
+    [],
+    [],
+    mockProfile,
+    [],
+    { id: 'neighbor-1', role: 'neighbor' }
+  );
+  assert(
+    contributorProjection.canDo.some(
+      (item) => item.type === 'report_fulfillment' && item.offerId === 'offer-1'
+    ),
+    'Only the matching contributor is offered fulfillment reporting'
+  );
+
+  const reportedLifecycleSeed: ParticipationSeed = {
+    ...sharedLifecycleSeed,
+    needs: sharedLifecycleSeed.needs.map((need) =>
+      need.authorityOfferId ? { ...need, status: 'reported' as const } : need
+    ),
+  };
+  const confirmationProjection = buildTodayProjection(
+    [reportedLifecycleSeed],
+    [],
+    [],
+    mockProfile,
+    [],
+    { id: 'household-1', role: 'household' }
+  );
+  assert(
+    confirmationProjection.canDo.some(
+      (item) => item.type === 'confirm_fulfillment' && item.offerId === 'offer-1'
+    ),
+    'Household confirmation receives the reported offer ID, not the need ID'
+  );
+
+  // Test 5: Private held Donkey notes visibility in Today projection
   const heldItemsInChanged = projection.whatChanged.filter((item) => item.isHeldNote);
   assert(heldItemsInChanged.length > 0, 'PROVED: Private held Donkey notes appear in Today projection on this device');
   assert(
@@ -120,7 +207,7 @@ async function runCampfireTests() {
     'PROVED: Held notes are explicitly flagged as private to this device'
   );
 
-  // Test 5: Authority contracts spec reporting for Task & Event
+  // Test 6: Authority contracts spec reporting for Task & Event
   assert(
     TASK_EVENT_AUTHORITY_CONTRACT_SPEC.status === 'NON_AUTHORITATIVE_READ_MODEL_ONLY',
     'Task & Event authority spec reports non-authoritative status'

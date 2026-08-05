@@ -5,6 +5,8 @@ import { BasketCategory, BasketOffer, ParticipationSeed } from '../../types';
 interface BasketViewProps {
   offers: BasketOffer[];
   seeds: ParticipationSeed[];
+  runtimeMode: 'shared_campfire' | 'this_device_demo';
+  currentUserRole: string;
   onOpenUniversalComposer: () => void;
   onPledgeNeed: (seedId: string, needId: string, pledgedBy: string) => void;
 }
@@ -12,6 +14,8 @@ interface BasketViewProps {
 export const BasketView: React.FC<BasketViewProps> = ({
   offers,
   seeds,
+  runtimeMode,
+  currentUserRole,
   onOpenUniversalComposer,
   onPledgeNeed,
 }) => {
@@ -39,7 +43,9 @@ export const BasketView: React.FC<BasketViewProps> = ({
           <div className="flex items-center space-x-2">
             <ShoppingBag className="w-6 h-6 text-amber-300" />
             <h2 className="font-extrabold text-xl sm:text-2xl text-amber-100">
-              Shared Neighborhood Basket
+              {runtimeMode === 'shared_campfire'
+                ? 'Shared Neighborhood Basket'
+                : 'This-Device Basket'}
             </h2>
           </div>
           <p className="text-xs sm:text-sm text-amber-200 mt-1 font-medium">
@@ -146,13 +152,19 @@ export const BasketView: React.FC<BasketViewProps> = ({
                   </p>
                 </div>
 
-                <button
-                  onClick={() => onPledgeNeed(need.seedId, need.id, 'Local Member (You)')}
-                  className="w-full py-2.5 px-3 rounded-2xl bg-amber-900 hover:bg-amber-950 text-amber-50 font-extrabold text-xs transition flex items-center justify-center space-x-1.5 min-h-[44px] cursor-pointer"
-                >
-                  <Heart className="w-3.5 h-3.5 text-amber-300" />
-                  <span>Pledge Support</span>
-                </button>
+                {currentUserRole !== 'household' ? (
+                  <button
+                    onClick={() => onPledgeNeed(need.seedId, need.id, 'Local Member (You)')}
+                    className="w-full py-2.5 px-3 rounded-2xl bg-amber-900 hover:bg-amber-950 text-amber-50 font-extrabold text-xs transition flex items-center justify-center space-x-1.5 min-h-[44px] cursor-pointer"
+                  >
+                    <Heart className="w-3.5 h-3.5 text-amber-300" />
+                    <span>Pledge Support</span>
+                  </button>
+                ) : (
+                  <p className="rounded-xl bg-amber-200/70 px-3 py-2 text-[11px] font-bold text-amber-900">
+                    Household-origin need · awaiting a neighbor or steward offer.
+                  </p>
+                )}
               </div>
             ))}
           </div>

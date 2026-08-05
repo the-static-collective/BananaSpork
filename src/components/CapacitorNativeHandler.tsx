@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
+import { Capacitor } from '@capacitor/core';
 import { App as CapApp } from '@capacitor/app';
 import { StatusBar, Style } from '@capacitor/status-bar';
 import { Keyboard } from '@capacitor/keyboard';
@@ -18,47 +19,55 @@ export const CapacitorNativeHandler: React.FC<CapacitorNativeHandlerProps> = ({
   setActiveTab,
 }) => {
   const [isOffline, setIsOffline] = useState<boolean>(!navigator.onLine);
+  const navigationRef = useRef({ activeModalOpen, onCloseModal, activeTab, setActiveTab });
 
   useEffect(() => {
-    // 1. Configure Native Status Bar if running in Capacitor
+    navigationRef.current = { activeModalOpen, onCloseModal, activeTab, setActiveTab };
+  }, [activeModalOpen, onCloseModal, activeTab, setActiveTab]);
+
+  useEffect(() => {
+    let active = true;
+    let removeBackListener: (() => Promise<void>) | undefined;
+
     const setupNativeUi = async () => {
+      if (!Capacitor.isNativePlatform()) return;
+
       try {
-        await StatusBar.setStyle({ style: Style.Light });
-        await StatusBar.setBackgroundColor({ color: '#fef3c7' }); // amber-100
-      } catch (e) {
-        // Ignored on web
+        await StatusBar.setStyle({ style: Style.Dark });
+        await StatusBar.setBackgroundColor({ color: '#fef3c7' });
+      } catch (error) {
+        console.warn('[NanaSpork] Status bar setup failed:', error);
       }
 
       try {
         await Keyboard.setAccessoryBarVisible({ isVisible: true });
-      } catch (e) {
-        // Ignored on web
+      } catch (error) {
+        console.warn('[NanaSpork] Keyboard setup failed:', error);
       }
-    };
 
-    setupNativeUi();
-
-    // 2. Configure Android Back Button Listener
-    let backButtonListener: any = null;
-    const bindBackButton = async () => {
       try {
-        backButtonListener = await CapApp.addListener('backButton', () => {
-          if (activeModalOpen && onCloseModal) {
-            onCloseModal();
-          } else if (activeTab !== 'today') {
-            setActiveTab('today');
+        const listener = await CapApp.addListener('backButton', () => {
+          const navigation = navigationRef.current;
+          if (navigation.activeModalOpen && navigation.onCloseModal) {
+            navigation.onCloseModal();
+          } else if (navigation.activeTab !== 'today') {
+            navigation.setActiveTab('today');
           } else {
-            CapApp.minimizeApp();
+            void CapApp.minimizeApp();
           }
         });
-      } catch (e) {
-        // Ignored on web
+        if (active) {
+          removeBackListener = listener.remove;
+        } else {
+          await listener.remove();
+        }
+      } catch (error) {
+        console.warn('[NanaSpork] Back-button setup failed:', error);
       }
     };
 
-    bindBackButton();
+    void setupNativeUi();
 
-    // 3. Online/Offline Network Listeners
     const handleOnline = () => setIsOffline(false);
     const handleOffline = () => setIsOffline(true);
 
@@ -66,13 +75,12 @@ export const CapacitorNativeHandler: React.FC<CapacitorNativeHandlerProps> = ({
     window.addEventListener('offline', handleOffline);
 
     return () => {
-      if (backButtonListener && typeof backButtonListener.remove === 'function') {
-        backButtonListener.remove();
-      }
+      active = false;
+      if (removeBackListener) void removeBackListener();
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
     };
-  }, [activeModalOpen, onCloseModal, activeTab, setActiveTab]);
+  }, []);
 
   if (!isOffline) return null;
 

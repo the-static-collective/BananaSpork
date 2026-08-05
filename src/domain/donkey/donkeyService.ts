@@ -5,6 +5,7 @@ import {
   DonkeyReframeRequest,
   DonkeyReframeResponse,
 } from './types';
+import { apiJson } from '../../lib/api';
 
 const STORAGE_KEY_HELD_NOTES = 'bananagram_donkey_held_notes_v1';
 
@@ -129,7 +130,7 @@ export async function requestDonkeyReframe(
   }
 
   try {
-    const res = await fetch('/api/donkey/reframe', {
+    const json = await apiJson<unknown>('/api/donkey/reframe', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(request),
@@ -137,13 +138,6 @@ export async function requestDonkeyReframe(
     });
 
     clearTimeout(timeoutId);
-
-    if (!res.ok) {
-      console.warn(`[DonkeyService] API returned status ${res.status}. Using local worksheet fallback.`);
-      return generateLocalWorksheetFallback(request.draft, request.contextMessages);
-    }
-
-    const json = await res.json();
     const validated = validateDonkeyResponse(json);
 
     if (!validated) {

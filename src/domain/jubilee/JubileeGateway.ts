@@ -1,33 +1,19 @@
 import { JubileeCurrentUser, JubileeGateway } from './contracts';
 import { DemoJubileeGateway } from './DemoJubileeGateway';
 import { SupabaseJubileeGateway } from './SupabaseJubileeGateway';
+import { supabasePublicConfig } from '../../integrations/supabase/config';
 
-let activeGatewayInstance: JubileeGateway | null = null;
-
-export function getJubileeGateway(currentUser?: JubileeCurrentUser): JubileeGateway {
-  if (activeGatewayInstance) {
-    if (currentUser) {
-      activeGatewayInstance.setCurrentUser(currentUser);
-    }
-    return activeGatewayInstance;
+export function getJubileeGateway(
+  currentUser?: JubileeCurrentUser,
+  sharedCampfireReady = false
+): JubileeGateway {
+  if (sharedCampfireReady && supabasePublicConfig.configured) {
+    return new SupabaseJubileeGateway(currentUser);
   }
-
-  const meta = import.meta as Record<string, any>;
-  const hasSupabaseEnv =
-    typeof meta !== 'undefined' &&
-    meta.env &&
-    meta.env.VITE_SUPABASE_URL &&
-    meta.env.VITE_SUPABASE_ANON_KEY;
-
-  if (hasSupabaseEnv) {
-    activeGatewayInstance = new SupabaseJubileeGateway(currentUser);
-  } else {
-    activeGatewayInstance = new DemoJubileeGateway(currentUser);
-  }
-
-  return activeGatewayInstance;
+  return new DemoJubileeGateway(currentUser);
 }
 
 export function resetJubileeGatewayForTesting(): void {
-  activeGatewayInstance = null;
+  // Gateways are instance-scoped so signing out or switching users cannot leak
+  // cached circle state into another session.
 }

@@ -1,20 +1,25 @@
 {
-  "name": "react-example",
+  "name": "nanaspork",
   "private": true,
-  "version": "0.0.0",
+  "version": "0.6.0",
   "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
     "dev": "tsx server.ts",
-    "build": "vite build && esbuild server.ts --bundle --platform=node --format=cjs --packages=external --sourcemap --outfile=dist/server.cjs",
-    "start": "node dist/server.cjs",
+    "build": "npm run clean && npm run build:client && npm run build:server",
+    "build:client": "vite build",
+    "build:server": "esbuild server.ts --bundle --platform=node --format=cjs --packages=external --sourcemap --outfile=dist/server/server.cjs",
+    "start": "node dist/server/server.cjs",
     "preview": "vite preview",
-    "clean": "rm -rf dist server.cjs",
+    "clean": "node scripts/clean.mjs",
     "lint": "tsc --noEmit",
-    "test": "tsx src/domain/jubilee/jubilee.test.ts && tsx src/domain/donkey/donkey.test.ts && tsx src/domain/campfire/campfire.test.ts && tsx src/domain/intelligence/intelligence.test.ts && tsx tests/canonical.test.ts",
-    "android:sync": "npm run build && npx cap sync android",
+    "test": "node --import tsx src/domain/jubilee/jubilee.test.ts && node --import tsx src/domain/donkey/donkey.test.ts && node --import tsx src/domain/campfire/campfire.test.ts && node --import tsx src/domain/intelligence/intelligence.test.ts && node --import tsx tests/canonical.test.ts && node --import tsx tests/runtime-config.test.ts",
+    "android:sync": "npm run build:client && npx cap sync android",
     "android:open": "npx cap open android",
     "android:run": "npx cap run android",
-    "android:build": "npm run build && npx cap sync android && cd android && ./gradlew assembleDebug"
+    "android:build": "npm run android:sync && cd android && ./gradlew assembleDebug"
   },
   "dependencies": {
     "@capacitor/android": "^8.4.2",

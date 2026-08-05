@@ -92,6 +92,14 @@ export class DemoJubileeGateway implements JubileeGateway {
     return [...this.receipts];
   }
 
+  public async refresh(): Promise<void> {
+    this.notify();
+  }
+
+  public setActiveCircleId(_circleId?: string): void {
+    // Device-local mode has no shared circle selector.
+  }
+
   public subscribe(listener: (state: JubileeState) => void): () => void {
     this.listeners.add(listener);
     listener(this.getState());
@@ -307,5 +315,26 @@ export class DemoJubileeGateway implements JubileeGateway {
 
     this.notify();
     return { success: true, data: updatedSeed, witnessReceipt };
+  }
+
+  public async acceptPledgedOffer(_offerId: string): Promise<CommandResult> {
+    return {
+      success: false,
+      error: 'Offer acceptance is an authority-plane action and is unavailable in device demo mode.',
+    };
+  }
+
+  public async declinePledgedOffer(_offerId: string, _reason?: string): Promise<CommandResult> {
+    return {
+      success: false,
+      error: 'Offer decline is an authority-plane action and is unavailable in device demo mode.',
+    };
+  }
+
+  public async reportFulfillmentAction(_offerId: string, _note?: string): Promise<CommandResult> {
+    return {
+      success: false,
+      error: 'Fulfillment reporting is an authority-plane action and is unavailable in device demo mode.',
+    };
   }
 }
