@@ -1,6 +1,12 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { BasketOffer, ParticipationSeed, WitnessReceipt } from '../../types';
-import { CommandResult, JubileeCurrentUser, JubileeState } from './contracts';
+import {
+  CommandResult,
+  JubileeCurrentUser,
+  JubileeState,
+  OpenSharedNeedInput,
+  OpenedSharedNeed,
+} from './contracts';
 import { getJubileeGateway } from './JubileeGateway';
 
 export function useJubilee(currentUser?: JubileeCurrentUser, activeCircleId?: string) {
@@ -69,6 +75,13 @@ export function useJubilee(currentUser?: JubileeCurrentUser, activeCircleId?: st
     [gateway, runAndRefresh]
   );
 
+  const openSharedNeedWithoutRefresh = useCallback(
+    async (input: OpenSharedNeedInput): Promise<CommandResult<OpenedSharedNeed>> => {
+      return gateway.openSharedNeed(input);
+    },
+    [gateway]
+  );
+
   const pledgeNeed = useCallback(
     async (seedId: string, needId: string, pledgedBy?: string): Promise<CommandResult<ParticipationSeed>> => {
       return runAndRefresh(() => gateway.pledgeNeed(seedId, needId, pledgedBy));
@@ -115,6 +128,7 @@ export function useJubilee(currentUser?: JubileeCurrentUser, activeCircleId?: st
     refresh,
     addOffer,
     addSeed,
+    openSharedNeedWithoutRefresh,
     pledgeNeed,
     acceptPledgedOffer,
     declinePledgedOffer,
