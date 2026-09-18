@@ -209,6 +209,8 @@ export class HelpSlipHoldStore {
       const requirementLinks = candidate.requirementLinks.map((link): RequirementCampfireLink => {
         if (
           !isRecord(link) ||
+          !isNonEmptyString(link.localCaseId) ||
+          !isNonEmptyString(link.payloadHash) ||
           link.localCaseId !== candidate.localCaseId ||
           link.payloadHash !== candidate.payloadHash ||
           !isNonEmptyString(link.requirementId) ||
@@ -221,15 +223,15 @@ export class HelpSlipHoldStore {
           throw new Error('MALFORMED_HELP_SLIP_HOLD_STORE');
         }
         return {
-          localCaseId: link.localCaseId,
-          requirementId: link.requirementId,
-          payloadHash: link.payloadHash,
-          circleId: link.circleId,
-          authorityNeedId: link.authorityNeedId,
-          pouredAt: link.pouredAt,
+          localCaseId: link.localCaseId as string,
+          requirementId: link.requirementId as string,
+          payloadHash: link.payloadHash as string,
+          circleId: link.circleId as string,
+          authorityNeedId: link.authorityNeedId as string,
+          pouredAt: link.pouredAt as string,
           ...(link.witnessReceiptId === undefined
             ? {}
-            : { witnessReceiptId: link.witnessReceiptId }),
+            : { witnessReceiptId: link.witnessReceiptId as string }),
         };
       });
 
