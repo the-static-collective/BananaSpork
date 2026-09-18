@@ -1,4 +1,3 @@
-import type { NeedProjection } from '../../lib/circle';
 import type {
   GardenHeldHelpCase,
   RequirementCampfireLink,
@@ -32,6 +31,11 @@ export interface CampfirePourPreview {
     'sourceSystem',
     'fullPurpose'
   ];
+}
+
+export interface LinkedNeedConfirmation {
+  needId: string;
+  confirmedUnits: number;
 }
 
 export interface HelpSlipResidualProjection {
@@ -86,7 +90,7 @@ export function buildCampfirePourPreview(
 
 export function projectHelpSlipResidual(
   heldCase: GardenHeldHelpCase,
-  linkedNeeds: readonly NeedProjection[]
+  linkedNeeds: readonly LinkedNeedConfirmation[]
 ): HelpSlipResidualProjection[] {
   const needsById = new Map(linkedNeeds.map((need) => [need.needId, need] as const));
 
@@ -191,4 +195,66 @@ export async function pourHeldRequirement(args: {
       error: error instanceof Error ? error.message : 'Shared status refresh failed.',
     };
   }
+}
+
+
+export function describeHeldHelpCase(
+  heldCase: GardenHeldHelpCase,
+  linkedNeeds: readonly LinkedNeedConfirmation[],
+  sharedState: 'current' | 'stale' | 'unavailable'
+): {
+  truthLabel: 'Held on this device' | 'Shared to Campfire';
+  sharingLabel:
+    | 'Not shared'
+    | 'Awaiting receipt confirmation'
+    | 'Partially confirmed'
+    | 'Receipt confirmed'
+    | 'Shared status unavailable / stale';
+  occurrenceCount: number;
+} {
+  if (heldCase.requirementLinks.length === 0) {
+    return {
+      truthLabel: 'Held on this device',
+      sharingLabel: 'Not shared',
+      occurrenceCount: heldCase.arrivals.length,
+    };
+  }
+
+  if (sharedState !== 'current') {
+    return {
+      truthLabel: 'Shared to Campfire',
+      sharingLabel: 'Shared status unavailable / stale',
+      occurrenceCount: heldCase.arrivals.length,
+    };
+  }
+
+  const needsById = new Map(linkedNeeds.map((need) => [need.needId, need] as const));
+  let anyConfirmed = false;
+  let allConfirmed = true;
+
+  for (const link of heldCase.requirementLinks) {
+    const requirement = heldCase.payload.requirements.find(
+      (candidate) => candidate.id === link.requirementId
+    );
+    const confirmation = needsById.get(link.authorityNeedId);
+    const confirmed = confirmation?.confirmedUnits ?? 0;
+
+    if (confirmed > 0) anyConfirmed = true;
+
+    if (requirement?.quantity !== undefined) {
+      if (confirmed < requirement.quantity) allConfirmed = false;
+    } else if (confirmed < 1) {
+      allConfirmed = false;
+    }
+  }
+
+  return {
+    truthLabel: 'Shared to Campfire',
+    sharingLabel: allConfirmed
+      ? 'Receipt confirmed'
+      : anyConfirmed
+        ? 'Partially confirmed'
+        : 'Awaiting receipt confirmation',
+    occurrenceCount: heldCase.arrivals.length,
+  };
 }
