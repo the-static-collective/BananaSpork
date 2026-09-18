@@ -36,6 +36,7 @@ import {
 } from './domain/campfire/campfireService';
 import { apiJson } from './lib/api';
 import { useCampfireSession } from './integrations/supabase/useCampfireSession';
+import { useSharedConversation } from './domain/conversation/useSharedConversation';
 import { HelpSlipInbox } from './domain/help-slip/HelpSlipInbox';
 import { HelpSlipHoldStore, type HelpSlipHoldResult } from './domain/help-slip/holdStore';
 import {
@@ -48,6 +49,7 @@ import type { GardenHeldHelpCase } from './domain/help-slip/types';
 const STORAGE_KEY_PROFILE = 'bananagram_kid_profile_v1';
 const STORAGE_KEY_MESSAGES = 'bananagram_messages_v1';
 const STORAGE_KEY_ONBOARDED = 'bananagram_onboarded_v1';
+const SHARED_CAMPFIRE_CHANNEL_ID = 'shared-campfire';
 
 const DEFAULT_PROFILE: KidProfile = {
   name: 'Leo',
@@ -88,6 +90,11 @@ export default function App() {
   });
 
   const campfireConnection = useCampfireSession();
+  const sharedConversation = useSharedConversation(
+    campfireConnection.status === 'ready'
+      ? campfireConnection.activeCircleId
+      : undefined
+  );
 
   // Jubilee Domain Gateway Connection
   const currentUserName = campfireConnection.currentUser?.name || 'Local Member (You)';
@@ -230,8 +237,84 @@ export default function App() {
     }
   }, [messagesByChannel]);
 
-  const activeChannel = channels.find((c) => c.id === activeChannelId) || channels[0];
-  const activeMessages = messagesByChannel[activeChannelId] || [];
+  const sharedCampfireChannel = React.useMemo<ChatChannel | undefined>(() => {
+    if (
+      campfireConnection.status !== 'ready' ||
+      !campfireConnection.activeCircleId ||
+      !campfireConnection.activeMembership
+    ) {
+      return undefined;
+    }
+
+    const lastSharedMessage = sharedConversation.messages.at(-1);
+
+    return {
+      id: SHARED_CAMPFIRE_CHANNEL_ID,
+      name: campfireConnection.activeMembership.circle_label || 'Shared Campfire',
+      avatar: '🔥',
+      badge: 'Shared',
+      subtitle:
+        sharedConversation.status === 'loading'
+          ? 'connecting shared conversation…'
+          : 'persisted member conversation',
+      type: 'group',
+      unreadCount: 0,
+      lastMessage: lastSharedMessage?.body || 'No shared messages yet',
+      lastTime: lastSharedMessage
+        ? new Date(lastSharedMessage.createdAt).toLocaleTimeString([], {
+            hour: '2-digit',
+            minute: '2-digit',
+          })
+        : undefined,
+      description:
+        'Authenticated Campfire conversation. Messages are durable shared conversation, not Jubilee witness events.',
+    };
+  }, [
+    campfireConnection.activeCircleId,
+    campfireConnection.activeMembership,
+    campfireConnection.status,
+    sharedConversation.messages,
+    sharedConversation.status,
+  ]);
+
+  const porchChannels = sharedCampfireChannel
+    ? [sharedCampfireChannel, ...channels]
+    : channels;
+
+  useEffect(() => {
+    if (
+      activeChannelId === SHARED_CAMPFIRE_CHANNEL_ID &&
+      !sharedCampfireChannel
+    ) {
+      setActiveChannelId('bananabot');
+    }
+  }, [activeChannelId, sharedCampfireChannel]);
+
+  const activeChannel =
+    activeChannelId === SHARED_CAMPFIRE_CHANNEL_ID && sharedCampfireChannel
+      ? sharedCampfireChannel
+      : channels.find((c) => c.id === activeChannelId) || channels[0];
+
+  const activeMessages =
+    activeChannelId === SHARED_CAMPFIRE_CHANNEL_ID
+      ? sharedConversation.messages.map<ChatMessage>((message) => ({
+          id: message.id,
+          sender:
+            message.senderUserId === currentUserObj.id ? 'user' : 'channel',
+          senderName:
+            message.senderUserId === currentUserObj.id
+              ? currentUserName
+              : `Campfire member ${message.senderUserId.slice(0, 8)}`,
+          text: message.body,
+          timestamp: Number.isNaN(Date.parse(message.createdAt))
+            ? message.createdAt
+            : new Date(message.createdAt).toLocaleTimeString([], {
+                hour: '2-digit',
+                minute: '2-digit',
+              }),
+          status: 'delivered',
+        }))
+      : messagesByChannel[activeChannelId] || [];
 
   // Helper to append message to active channel
   const addMessageToChannel = (channelId: string, message: ChatMessage) => {
@@ -426,6 +509,45 @@ export default function App() {
   const handleSendMessage = async (text: string, imageUri?: string, proposal?: ActionProposal) => {
     const timeNow = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
+    if (activeChannelId === SHARED_CAMPFIRE_CHANNEL_ID) {
+      if (
+        campfireConnection.status !== 'ready' ||
+        !campfireConnection.activeCircleId
+      ) {
+        setActionNotice({
+          kind: 'error',
+          text: 'Shared Campfire conversation is unavailable for this session.',
+        });
+        return;
+      }
+
+      if (imageUri) {
+        setActionNotice({
+          kind: 'error',
+          text: 'Shared Campfire v0 is text-only. The image was not published.',
+        });
+        return;
+      }
+
+      try {
+        await sharedConversation.send(text);
+        if (proposal) setProposals(getLocalProposals());
+        setActionNotice({
+          kind: 'success',
+          text: 'Message persisted in the shared Campfire conversation. It is not a Jubilee witness event.',
+        });
+      } catch (error: unknown) {
+        setActionNotice({
+          kind: 'error',
+          text:
+            error instanceof Error
+              ? `Shared message failed: ${error.message}`
+              : 'Shared message failed.',
+        });
+      }
+      return;
+    }
+
     const userMsg: ChatMessage = {
       id: `user-${Date.now()}`,
       sender: 'user',
@@ -511,6 +633,14 @@ export default function App() {
   };
 
   const handleSendRecipeFromApp = (recipeCard: RecipeCard) => {
+    if (activeChannelId === SHARED_CAMPFIRE_CHANNEL_ID) {
+      setActionNotice({
+        kind: 'local',
+        text: 'Shared Campfire v0 carries text only. The recipe card was not published.',
+      });
+      return;
+    }
+
     const timeNow = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
     const msg: ChatMessage = {
@@ -572,7 +702,7 @@ export default function App() {
     }
   };
 
-  const unreadChatTotal = channels.reduce((acc, c) => acc + (c.unreadCount || 0), 0);
+  const unreadChatTotal = porchChannels.reduce((acc, c) => acc + (c.unreadCount || 0), 0);
 
   const isAnyModalOpen =
     universalComposerOpen ||
@@ -717,7 +847,7 @@ export default function App() {
         {activeTab === 'porch' && (
           <div className="flex-1 flex w-full h-full overflow-hidden">
             <Sidebar
-              channels={channels}
+              channels={porchChannels}
               activeChannelId={activeChannelId}
               onSelectChannel={(id) => setActiveChannelId(id)}
               isOpen={sidebarOpen}
@@ -744,6 +874,7 @@ export default function App() {
               onShareToPartner={handleShareToPartner}
               kidProfile={kidProfile}
               audioMuted={audioMuted}
+              textOnly={activeChannelId === SHARED_CAMPFIRE_CHANNEL_ID}
             />
           </div>
         )}

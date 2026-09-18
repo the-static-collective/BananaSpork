@@ -46,6 +46,38 @@ export type Database = {
           },
         ]
       }
+      circle_messages: {
+        Row: {
+          body: string
+          circle_id: string
+          created_at: string
+          id: string
+          sender_user_id: string
+        }
+        Insert: {
+          body: string
+          circle_id: string
+          created_at?: string
+          id?: string
+          sender_user_id?: string
+        }
+        Update: {
+          body?: string
+          circle_id?: string
+          created_at?: string
+          id?: string
+          sender_user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "circle_messages_circle_id_fkey"
+            columns: ["circle_id"]
+            isOneToOne: false
+            referencedRelation: "circles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       circles: {
         Row: {
           created_at: string

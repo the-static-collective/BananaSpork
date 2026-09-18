@@ -34,6 +34,7 @@ interface ChatViewProps {
   onShareToPartner: (text: string, recipeCard?: RecipeCard) => void;
   kidProfile: KidProfile;
   audioMuted: boolean;
+  textOnly?: boolean;
 }
 
 export const ChatView: React.FC<ChatViewProps> = ({
@@ -49,6 +50,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
   onShareToPartner,
   kidProfile,
   audioMuted,
+  textOnly = false,
 }) => {
   const [inputText, setInputText] = useState('');
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
@@ -400,7 +402,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
       </div>
 
       {/* Selected Image Preview before sending */}
-      {selectedImage && (
+      {selectedImage && !textOnly && (
         <div className="bg-amber-100/90 border-t border-amber-200 p-2 px-4 flex items-center justify-between">
           <div className="flex items-center space-x-3 min-w-0">
             <img
@@ -508,35 +510,39 @@ export const ChatView: React.FC<ChatViewProps> = ({
       {/* Input Toolbar & Area */}
       <div className="p-2.5 sm:p-3 bg-amber-100/90 border-t border-amber-200/90 shadow-lg">
         <div className="max-w-3xl mx-auto flex items-center space-x-2">
-          {/* File input hidden */}
-          <input
-            type="file"
-            accept="image/*"
-            ref={fileInputRef}
-            onChange={handleImageSelect}
-            className="hidden"
-            id="chat-file-input"
-          />
+          {!textOnly && (
+            <>
+              {/* File input hidden */}
+              <input
+                type="file"
+                accept="image/*"
+                ref={fileInputRef}
+                onChange={handleImageSelect}
+                className="hidden"
+                id="chat-file-input"
+              />
 
-          {/* 📸 Attach Image Button */}
-          <button
-            onClick={() => fileInputRef.current?.click()}
-            className="p-2.5 rounded-xl bg-amber-200/70 hover:bg-amber-300/80 text-amber-900 transition shrink-0 active:scale-95"
-            title="Snap or attach fridge/pantry photo"
-            id="attach-photo-btn"
-          >
-            <Camera className="w-5 h-5 text-amber-900" />
-          </button>
+              {/* 📸 Attach Image Button */}
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                className="p-2.5 rounded-xl bg-amber-200/70 hover:bg-amber-300/80 text-amber-900 transition shrink-0 active:scale-95"
+                title="Snap or attach fridge/pantry photo"
+                id="attach-photo-btn"
+              >
+                <Camera className="w-5 h-5 text-amber-900" />
+              </button>
 
-          {/* ⚡ Open Pantry Rescue Mini-App */}
-          <button
-            onClick={onOpenPantryApp}
-            className="p-2.5 rounded-xl bg-amber-300/80 hover:bg-amber-400 text-amber-950 font-bold transition shrink-0 active:scale-95"
-            title="Open Pantry Rescue Mini-App"
-            id="pantry-app-trigger-btn"
-          >
-            <Sparkles className="w-5 h-5 text-amber-950" />
-          </button>
+              {/* ⚡ Open Pantry Rescue Mini-App */}
+              <button
+                onClick={onOpenPantryApp}
+                className="p-2.5 rounded-xl bg-amber-300/80 hover:bg-amber-400 text-amber-950 font-bold transition shrink-0 active:scale-95"
+                title="Open Pantry Rescue Mini-App"
+                id="pantry-app-trigger-btn"
+              >
+                <Sparkles className="w-5 h-5 text-amber-950" />
+              </button>
+            </>
+          )}
 
           {/* Main Text Input */}
           <div className="flex-1 relative">
@@ -546,27 +552,33 @@ export const ChatView: React.FC<ChatViewProps> = ({
               onChange={(e) => setInputText(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleSend()}
               placeholder={
-                channel.type === 'bot'
-                  ? 'Ask BananaBot or type ingredients (e.g., eggs, bread, banana)...'
-                  : 'Type a message...'
+                textOnly
+                  ? 'Message this Campfire (shared text only)...'
+                  : channel.type === 'bot'
+                    ? 'Ask BananaBot or type ingredients (e.g., eggs, bread, banana)...'
+                    : 'Type a message...'
               }
               className="w-full pl-3.5 pr-10 py-2.5 bg-white text-amber-950 text-sm rounded-2xl border border-amber-300 focus:outline-none focus:ring-2 focus:ring-amber-400 placeholder-amber-800/50 font-medium shadow-2xs"
               id="chat-message-input"
             />
 
-            {/* 🎙️ Voice Mic Button */}
-            <button
-              onClick={toggleRecording}
-              className={`absolute right-2 top-2 p-1 rounded-xl transition ${
-                isRecording
-                  ? 'bg-red-500 text-white animate-pulse'
-                  : 'text-amber-800 hover:bg-amber-100'
-              }`}
-              title={isRecording ? 'Listening... click to stop' : 'Tap to speak hands-free'}
-              id="voice-input-btn"
-            >
-              {isRecording ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
-            </button>
+            {!textOnly && (
+              <>
+                {/* 🎙️ Voice Mic Button */}
+                <button
+                  onClick={toggleRecording}
+                  className={`absolute right-2 top-2 p-1 rounded-xl transition ${
+                    isRecording
+                      ? 'bg-red-500 text-white animate-pulse'
+                      : 'text-amber-800 hover:bg-amber-100'
+                  }`}
+                  title={isRecording ? 'Listening... click to stop' : 'Tap to speak hands-free'}
+                  id="voice-input-btn"
+                >
+                  {isRecording ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
+                </button>
+              </>
+            )}
           </div>
 
           {/* 🫏 Donkey Pause & Reframing Button */}
@@ -583,9 +595,9 @@ export const ChatView: React.FC<ChatViewProps> = ({
           {/* Send Button */}
           <button
             onClick={handleSend}
-            disabled={!inputText.trim() && !selectedImage}
+            disabled={!inputText.trim() && !(selectedImage && !textOnly)}
             className={`p-2.5 rounded-2xl transition flex items-center justify-center shrink-0 shadow-xs active:scale-95 ${
-              inputText.trim() || selectedImage
+              inputText.trim() || (selectedImage && !textOnly)
                 ? 'bg-amber-900 hover:bg-amber-950 text-amber-50 cursor-pointer'
                 : 'bg-amber-300/50 text-amber-700/50 cursor-not-allowed'
             }`}
