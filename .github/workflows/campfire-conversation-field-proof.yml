@@ -1,0 +1,33 @@
+name: Campfire conversation field proof
+
+on:
+  pull_request:
+    paths:
+      - 'src/App.tsx'
+      - 'src/components/ChatView.tsx'
+      - 'src/domain/conversation/**'
+      - 'src/integrations/supabase/**'
+      - 'supabase/migrations/**'
+      - 'docs/field-specimen-001.md'
+      - 'package.json'
+      - '.github/workflows/campfire-conversation-field-proof.yml'
+  push:
+    branches:
+      - feat/campfire-conversation-field-proof-001
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npm test
+      - run: npm run build
