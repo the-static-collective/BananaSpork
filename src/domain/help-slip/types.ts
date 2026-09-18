@@ -49,3 +49,31 @@ export type HelpSlipAdmission =
       carrierHash: string;
       reason: HelpSlipRefusalReason;
     };
+
+
+export interface HelpSlipArrival {
+  occurrenceId: string;
+  receivedAt: string;
+  carrierHash: string;
+}
+
+export interface RequirementCampfireLink {
+  localCaseId: string;
+  requirementId: string;
+  payloadHash: string;
+  circleId: string;
+  authorityNeedId: string;
+  pouredAt: string;
+  witnessReceiptId?: string;
+}
+
+export interface GardenHeldHelpCase {
+  localCaseId: string;
+  envelopeId: string;
+  payloadHash: string;
+  payload: ImportedFulfillmentEnvelopeV0;
+  heldAt: string;
+  status: 'held';
+  arrivals: HelpSlipArrival[];
+  requirementLinks: RequirementCampfireLink[];
+}
