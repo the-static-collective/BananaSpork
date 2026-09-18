@@ -130,19 +130,27 @@ function aggregateLinkedConfirmations(
   const linkedNeeds = links
     .map((link) => needsById.get(link.authorityNeedId))
     .filter((need): need is LinkedNeedConfirmation => need !== undefined);
+  const missingNeedIds = links
+    .filter((link) => !needsById.has(link.authorityNeedId))
+    .map((link) => link.authorityNeedId);
 
   if (links.length === 1) {
+    const need = linkedNeeds[0];
     return {
-      confirmedUnits: linkedNeeds[0]?.confirmedUnits ?? 0,
-      confirmedUnitsExact: true,
+      confirmedUnits: need?.confirmedUnits ?? 0,
+      confirmedUnitsExact: need !== undefined,
       confirmationBasis: 'single-link',
-      warnings: [],
+      warnings: need
+        ? []
+        : [`LINKED_NEED_STATUS_MISSING:${links[0].authorityNeedId}`],
     };
   }
 
-  const warnings: string[] = [];
+  const warnings: string[] = missingNeedIds.map(
+    (needId) => `LINKED_NEED_STATUS_MISSING:${needId}`
+  );
   const occurrences = new Map<string, number>();
-  let occurrenceAccountingComplete = true;
+  let occurrenceAccountingComplete = missingNeedIds.length === 0;
 
   for (const need of linkedNeeds) {
     const refs = need.confirmationOccurrences ?? [];
@@ -162,6 +170,16 @@ function aggregateLinkedConfirmations(
     }
 
     for (const occurrence of refs) {
+      if (
+        !occurrence.occurrenceRef.trim() ||
+        !Number.isFinite(occurrence.confirmedUnits) ||
+        occurrence.confirmedUnits <= 0
+      ) {
+        occurrenceAccountingComplete = false;
+        warnings.push(`INVALID_CONFIRMATION_OCCURRENCE:${need.needId}`);
+        continue;
+      }
+
       const existing = occurrences.get(occurrence.occurrenceRef);
       if (existing !== undefined && !nearlyEqual(existing, occurrence.confirmedUnits)) {
         occurrenceAccountingComplete = false;
