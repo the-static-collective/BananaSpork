@@ -125,6 +125,7 @@ import {
   buildCampfirePourPreview,
   projectHelpSlipResidual,
   pourHeldRequirement,
+  describeHeldHelpCase,
 } from './pour';
 import type {
   GardenHeldHelpCase,
@@ -379,4 +380,49 @@ test('existing requirement/circle lineage prevents duplicate publication', async
 
   assert.equal(result.status, 'already_shared');
   assert.equal(opens, 0);
+});
+
+
+test('held Help Slip truth labels distinguish local, partial, confirmed, and stale state', () => {
+  const local = makeHeldCase({
+    requirements: [
+      { id: 'ingredient:tomatoes', kind: 'ingredient', description: 'Tomatoes', quantity: 2, unit: 'can' },
+    ],
+  });
+  assert.deepEqual(describeHeldHelpCase(local, [], 'current'), {
+    truthLabel: 'Held on this device',
+    sharingLabel: 'Not shared',
+    occurrenceCount: 1,
+  });
+
+  const shared = makeHeldCase({
+    requirements: [
+      { id: 'ingredient:tomatoes', kind: 'ingredient', description: 'Tomatoes', quantity: 2, unit: 'can' },
+    ],
+    requirementLinks: [{
+      localCaseId: 'help-case:test-hash',
+      requirementId: 'ingredient:tomatoes',
+      payloadHash: 'test-hash',
+      circleId: 'circle-1',
+      authorityNeedId: 'need-1',
+      pouredAt: 't',
+    }],
+  });
+
+  assert.equal(
+    describeHeldHelpCase(shared, [{ needId: 'need-1', confirmedUnits: 0 }], 'current').sharingLabel,
+    'Awaiting receipt confirmation'
+  );
+  assert.equal(
+    describeHeldHelpCase(shared, [{ needId: 'need-1', confirmedUnits: 1 }], 'current').sharingLabel,
+    'Partially confirmed'
+  );
+  assert.equal(
+    describeHeldHelpCase(shared, [{ needId: 'need-1', confirmedUnits: 2 }], 'current').sharingLabel,
+    'Receipt confirmed'
+  );
+  assert.equal(
+    describeHeldHelpCase(shared, [{ needId: 'need-1', confirmedUnits: 2 }], 'stale').sharingLabel,
+    'Shared status unavailable / stale'
+  );
 });
