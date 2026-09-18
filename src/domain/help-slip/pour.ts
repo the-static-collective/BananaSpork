@@ -33,9 +33,15 @@ export interface CampfirePourPreview {
   ];
 }
 
+export interface LinkedConfirmationOccurrence {
+  occurrenceRef: string;
+  confirmedUnits: number;
+}
+
 export interface LinkedNeedConfirmation {
   needId: string;
   confirmedUnits: number;
+  confirmationOccurrences?: readonly LinkedConfirmationOccurrence[];
 }
 
 export interface HelpSlipResidualProjection {
@@ -43,12 +49,22 @@ export interface HelpSlipResidualProjection {
   description: string;
   circleId?: string;
   authorityNeedId?: string;
+  circleIds: string[];
+  authorityNeedIds: string[];
   sourceQuantity?: number;
   sourceUnit?: string;
   confirmedUnits: number;
+  confirmedUnitsExact: boolean;
+  confirmationBasis:
+    | 'none'
+    | 'single-link'
+    | 'deduplicated-occurrences'
+    | 'ambiguous-multi-link-lower-bound';
   confirmedResidual?: number;
+  excessConfirmedUnits: number;
   qualitativeResolved: boolean;
   shared: boolean;
+  warnings: string[];
 }
 
 export function buildCampfirePourPreview(
@@ -88,6 +104,100 @@ export function buildCampfirePourPreview(
   };
 }
 
+function nearlyEqual(left: number, right: number): boolean {
+  const scale = Math.max(1, Math.abs(left), Math.abs(right));
+  return Math.abs(left - right) <= Number.EPSILON * scale * 8;
+}
+
+function aggregateLinkedConfirmations(
+  links: readonly RequirementCampfireLink[],
+  needsById: ReadonlyMap<string, LinkedNeedConfirmation>
+): {
+  confirmedUnits: number;
+  confirmedUnitsExact: boolean;
+  confirmationBasis: HelpSlipResidualProjection['confirmationBasis'];
+  warnings: string[];
+} {
+  if (links.length === 0) {
+    return {
+      confirmedUnits: 0,
+      confirmedUnitsExact: true,
+      confirmationBasis: 'none',
+      warnings: [],
+    };
+  }
+
+  const linkedNeeds = links
+    .map((link) => needsById.get(link.authorityNeedId))
+    .filter((need): need is LinkedNeedConfirmation => need !== undefined);
+
+  if (links.length === 1) {
+    return {
+      confirmedUnits: linkedNeeds[0]?.confirmedUnits ?? 0,
+      confirmedUnitsExact: true,
+      confirmationBasis: 'single-link',
+      warnings: [],
+    };
+  }
+
+  const warnings: string[] = [];
+  const occurrences = new Map<string, number>();
+  let occurrenceAccountingComplete = true;
+
+  for (const need of linkedNeeds) {
+    const refs = need.confirmationOccurrences ?? [];
+
+    if (need.confirmedUnits > 0 && refs.length === 0) {
+      occurrenceAccountingComplete = false;
+      continue;
+    }
+
+    const occurrenceTotal = refs.reduce(
+      (sum, occurrence) => sum + occurrence.confirmedUnits,
+      0
+    );
+    if (!nearlyEqual(occurrenceTotal, need.confirmedUnits)) {
+      occurrenceAccountingComplete = false;
+      warnings.push(`CONFIRMATION_OCCURRENCE_TOTAL_MISMATCH:${need.needId}`);
+    }
+
+    for (const occurrence of refs) {
+      const existing = occurrences.get(occurrence.occurrenceRef);
+      if (existing !== undefined && !nearlyEqual(existing, occurrence.confirmedUnits)) {
+        occurrenceAccountingComplete = false;
+        warnings.push(
+          `CONFLICTING_CONFIRMATION_OCCURRENCE:${occurrence.occurrenceRef}`
+        );
+        continue;
+      }
+      occurrences.set(occurrence.occurrenceRef, occurrence.confirmedUnits);
+    }
+  }
+
+  if (occurrenceAccountingComplete) {
+    return {
+      confirmedUnits: Array.from(occurrences.values()).reduce(
+        (sum, value) => sum + value,
+        0
+      ),
+      confirmedUnitsExact: true,
+      confirmationBasis: 'deduplicated-occurrences',
+      warnings,
+    };
+  }
+
+  warnings.push('MULTI_LINK_CONFIRMATION_AMBIGUOUS');
+  return {
+    confirmedUnits: linkedNeeds.reduce(
+      (lowerBound, need) => Math.max(lowerBound, need.confirmedUnits),
+      0
+    ),
+    confirmedUnitsExact: false,
+    confirmationBasis: 'ambiguous-multi-link-lower-bound',
+    warnings,
+  };
+}
+
 export function projectHelpSlipResidual(
   heldCase: GardenHeldHelpCase,
   linkedNeeds: readonly LinkedNeedConfirmation[]
@@ -95,47 +205,59 @@ export function projectHelpSlipResidual(
   const needsById = new Map(linkedNeeds.map((need) => [need.needId, need] as const));
 
   return heldCase.payload.requirements.map((requirement) => {
-    const link = heldCase.requirementLinks.find(
+    const links = heldCase.requirementLinks.filter(
       (candidate) => candidate.requirementId === requirement.id
     );
-    const need = link ? needsById.get(link.authorityNeedId) : undefined;
-    const confirmedUnits = need?.confirmedUnits ?? 0;
+    const aggregation = aggregateLinkedConfirmations(links, needsById);
+    const confirmedUnits = aggregation.confirmedUnits;
+    const singleLink = links.length === 1 ? links[0] : undefined;
 
     if (requirement.quantity === undefined) {
       return {
         requirementId: requirement.id,
         description: requirement.description,
-        ...(link === undefined
+        ...(singleLink === undefined
           ? {}
           : {
-              circleId: link.circleId,
-              authorityNeedId: link.authorityNeedId,
+              circleId: singleLink.circleId,
+              authorityNeedId: singleLink.authorityNeedId,
             }),
+        circleIds: links.map((link) => link.circleId),
+        authorityNeedIds: links.map((link) => link.authorityNeedId),
         confirmedUnits,
-        qualitativeResolved: Boolean(need && need.confirmedUnits >= 1),
-        shared: link !== undefined,
+        confirmedUnitsExact: aggregation.confirmedUnitsExact,
+        confirmationBasis: aggregation.confirmationBasis,
+        excessConfirmedUnits: 0,
+        qualitativeResolved: confirmedUnits >= 1,
+        shared: links.length > 0,
+        warnings: aggregation.warnings,
       };
     }
 
     return {
       requirementId: requirement.id,
       description: requirement.description,
-      ...(link === undefined
+      ...(singleLink === undefined
         ? {}
         : {
-            circleId: link.circleId,
-            authorityNeedId: link.authorityNeedId,
+            circleId: singleLink.circleId,
+            authorityNeedId: singleLink.authorityNeedId,
           }),
+      circleIds: links.map((link) => link.circleId),
+      authorityNeedIds: links.map((link) => link.authorityNeedId),
       sourceQuantity: requirement.quantity,
       sourceUnit: requirement.unit,
       confirmedUnits,
+      confirmedUnitsExact: aggregation.confirmedUnitsExact,
+      confirmationBasis: aggregation.confirmationBasis,
       confirmedResidual: Math.max(requirement.quantity - confirmedUnits, 0),
+      excessConfirmedUnits: Math.max(confirmedUnits - requirement.quantity, 0),
       qualitativeResolved: false,
-      shared: link !== undefined,
+      shared: links.length > 0,
+      warnings: aggregation.warnings,
     };
   });
 }
-
 
 export type PourHeldRequirementResult =
   | { status: 'shared'; link: RequirementCampfireLink }
@@ -197,7 +319,6 @@ export async function pourHeldRequirement(args: {
   }
 }
 
-
 export function describeHeldHelpCase(
   heldCase: GardenHeldHelpCase,
   linkedNeeds: readonly LinkedNeedConfirmation[],
@@ -208,7 +329,8 @@ export function describeHeldHelpCase(
     | 'Not shared'
     | 'Awaiting receipt confirmation'
     | 'Partially confirmed'
-    | 'Receipt confirmed'
+    | 'Shared portion confirmed'
+    | 'Source request confirmed'
     | 'Shared status unavailable / stale';
   occurrenceCount: number;
 } {
@@ -228,33 +350,28 @@ export function describeHeldHelpCase(
     };
   }
 
-  const needsById = new Map(linkedNeeds.map((need) => [need.needId, need] as const));
-  let anyConfirmed = false;
-  let allConfirmed = true;
-
-  for (const link of heldCase.requirementLinks) {
-    const requirement = heldCase.payload.requirements.find(
-      (candidate) => candidate.id === link.requirementId
-    );
-    const confirmation = needsById.get(link.authorityNeedId);
-    const confirmed = confirmation?.confirmedUnits ?? 0;
-
-    if (confirmed > 0) anyConfirmed = true;
-
-    if (requirement?.quantity !== undefined) {
-      if (confirmed < requirement.quantity) allConfirmed = false;
-    } else if (confirmed < 1) {
-      allConfirmed = false;
-    }
-  }
+  const residuals = projectHelpSlipResidual(heldCase, linkedNeeds);
+  const sharedResiduals = residuals.filter((residual) => residual.shared);
+  const anyConfirmed = sharedResiduals.some(
+    (residual) => residual.confirmedUnits > 0 || residual.qualitativeResolved
+  );
+  const allSharedResolved = sharedResiduals.every((residual) =>
+    residual.sourceQuantity === undefined
+      ? residual.qualitativeResolved
+      : residual.confirmedResidual === 0
+  );
+  const allRequirementsShared = residuals.every((residual) => residual.shared);
 
   return {
     truthLabel: 'Shared to Campfire',
-    sharingLabel: allConfirmed
-      ? 'Receipt confirmed'
-      : anyConfirmed
-        ? 'Partially confirmed'
-        : 'Awaiting receipt confirmation',
+    sharingLabel:
+      allSharedResolved && allRequirementsShared
+        ? 'Source request confirmed'
+        : allSharedResolved
+          ? 'Shared portion confirmed'
+          : anyConfirmed
+            ? 'Partially confirmed'
+            : 'Awaiting receipt confirmation',
     occurrenceCount: heldCase.arrivals.length,
   };
 }
