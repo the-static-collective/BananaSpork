@@ -1,4 +1,4 @@
-> **Active edge:** `design/help-slip-garden-adapter-001` — current Garden Help Slip / RECEIVE → HOLD → POUR integration frontier. Implementation from PR #7 is merged here; PR #6 remains the promotion/review boundary toward `main`.
+> **Active edge:** `feat/return-of-help-slip-001` — RETURN-OF-THE-HELP-SLIP integration frontier. The Garden Help Slip / RECEIVE → HOLD → POUR adapter is now canonical on `main`; this edge hardens multi-Campfire confirmation truth and the return-status membrane.
 
 # NanaSpork / BananaGram
 
