@@ -36,6 +36,14 @@ import {
 } from './domain/campfire/campfireService';
 import { apiJson } from './lib/api';
 import { useCampfireSession } from './integrations/supabase/useCampfireSession';
+import { HelpSlipInbox } from './domain/help-slip/HelpSlipInbox';
+import { HelpSlipHoldStore, type HelpSlipHoldResult } from './domain/help-slip/holdStore';
+import {
+  pourHeldRequirement,
+  type CampfirePourPreview,
+  type PourHeldRequirementResult,
+} from './domain/help-slip/pour';
+import type { GardenHeldHelpCase } from './domain/help-slip/types';
 
 const STORAGE_KEY_PROFILE = 'bananagram_kid_profile_v1';
 const STORAGE_KEY_MESSAGES = 'bananagram_messages_v1';
@@ -99,16 +107,90 @@ export default function App() {
     receipts,
     addOffer,
     addSeed,
+    openSharedNeedWithoutRefresh,
     pledgeNeed,
     acceptPledgedOffer,
     reportFulfillment,
     confirmFulfillment,
     refreshing: refreshingCampfire,
     refreshError,
+    refreshSharedStateWithoutCatch,
   } = useJubilee(
     currentUserObj,
     campfireConnection.status === 'ready' ? campfireConnection.activeCircleId : undefined
   );
+
+  const helpSlipStore = React.useMemo(() => new HelpSlipHoldStore(), []);
+  const [heldHelpCases, setHeldHelpCases] = useState<GardenHeldHelpCase[]>([]);
+  const [helpSlipStoreError, setHelpSlipStoreError] = useState<string>();
+
+  const reloadHeldHelpCases = React.useCallback(() => {
+    try {
+      setHeldHelpCases(helpSlipStore.listHeldHelpCases());
+      setHelpSlipStoreError(undefined);
+    } catch (error: unknown) {
+      setHeldHelpCases([]);
+      setHelpSlipStoreError(
+        error instanceof Error ? error.message : 'Could not read device-held Help Slips.'
+      );
+    }
+  }, [helpSlipStore]);
+
+  useEffect(() => {
+    reloadHeldHelpCases();
+  }, [reloadHeldHelpCases]);
+
+  const linkedHelpSlipNeeds = React.useMemo(
+    () => seeds.map((seed) => ({ needId: seed.id, confirmedUnits: seed.harvestsCount })),
+    [seeds]
+  );
+
+  const activeHelpSlipCircle =
+    campfireConnection.status === 'ready' && campfireConnection.activeCircleId
+      ? {
+          circleId: campfireConnection.activeCircleId,
+          circleLabel: campfireConnection.activeMembership?.circle_label || 'Active Campfire',
+        }
+      : undefined;
+
+  const helpSlipSharedState: 'current' | 'stale' | 'unavailable' =
+    campfireConnection.status !== 'ready'
+      ? 'unavailable'
+      : refreshError
+        ? 'stale'
+        : 'current';
+
+  const handleHoldHelpSlip = (
+    rawText: string,
+    metadata: { occurrenceId: string; receivedAt: string }
+  ): HelpSlipHoldResult => {
+    const result = helpSlipStore.holdImportedHelpSlip(rawText, metadata);
+    reloadHeldHelpCases();
+    return result;
+  };
+
+  const handlePourHelpSlip = async (
+    heldCase: GardenHeldHelpCase,
+    preview: CampfirePourPreview
+  ): Promise<PourHeldRequirementResult> => {
+    const result = await pourHeldRequirement({
+      heldCase,
+      preview,
+      openSharedNeed: openSharedNeedWithoutRefresh,
+      addRequirementLink: (link) => {
+        helpSlipStore.addRequirementLink(heldCase.localCaseId, link);
+        reloadHeldHelpCases();
+      },
+      refreshSharedState: refreshSharedStateWithoutCatch,
+      now: () => new Date().toISOString(),
+    });
+
+    if (result.status === 'shared' || result.status === 'shared_refresh_failed') {
+      reloadHeldHelpCases();
+    }
+
+    return result;
+  };
 
   // UI Modals
   const [sidebarOpen, setSidebarOpen] = useState<boolean>(false);
@@ -597,6 +679,23 @@ export default function App() {
                       (refreshingCampfire ? 'Refreshing shared Campfire history…' : '')}
                   </div>
                 )}
+              </div>
+            }
+            helpSlipInbox={
+              <div className="space-y-2">
+                {helpSlipStoreError && (
+                  <div className="rounded-xl border border-red-300 bg-red-50 px-3 py-2 text-[11px] font-semibold text-red-800" role="alert">
+                    Device HOLD unavailable: {helpSlipStoreError}
+                  </div>
+                )}
+                <HelpSlipInbox
+                  heldCases={heldHelpCases}
+                  activeCircle={activeHelpSlipCircle}
+                  linkedNeeds={linkedHelpSlipNeeds}
+                  sharedState={helpSlipSharedState}
+                  onHold={handleHoldHelpSlip}
+                  onPour={handlePourHelpSlip}
+                />
               </div>
             }
             onPledgeNeed={(seedId, needId, pledgedBy) =>
