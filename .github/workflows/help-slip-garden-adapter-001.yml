@@ -1,9 +1,9 @@
-name: help-slip-garden-adapter-001
+name: help-slip-return
 
 on:
   pull_request:
     branches:
-      - design/help-slip-garden-adapter-001
+      - main
 
 permissions:
   contents: read
