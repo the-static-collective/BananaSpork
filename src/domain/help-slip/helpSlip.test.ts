@@ -419,10 +419,133 @@ test('held Help Slip truth labels distinguish local, partial, confirmed, and sta
   );
   assert.equal(
     describeHeldHelpCase(shared, [{ needId: 'need-1', confirmedUnits: 2 }], 'current').sharingLabel,
-    'Receipt confirmed'
+    'Source request confirmed'
   );
   assert.equal(
     describeHeldHelpCase(shared, [{ needId: 'need-1', confirmedUnits: 2 }], 'stale').sharingLabel,
     'Shared status unavailable / stale'
   );
+});
+
+
+test('confirmed shared subset does not claim the whole source request', () => {
+  const held = makeHeldCase({
+    requirements: [
+      { id: 'milk', kind: 'ingredient', description: 'Milk', quantity: 1, unit: 'carton' },
+      { id: 'eggs', kind: 'ingredient', description: 'Eggs', quantity: 1, unit: 'dozen' },
+    ],
+    requirementLinks: [{
+      localCaseId: 'help-case:test-hash',
+      requirementId: 'milk',
+      payloadHash: 'test-hash',
+      circleId: 'circle-1',
+      authorityNeedId: 'need-milk',
+      pouredAt: 't',
+    }],
+  });
+
+  const description = describeHeldHelpCase(
+    held,
+    [{ needId: 'need-milk', confirmedUnits: 1 }],
+    'current'
+  );
+
+  assert.equal(description.sharingLabel, 'Shared portion confirmed');
+});
+
+test('multi-Campfire residual fails conservative when occurrence identity is absent', () => {
+  const held = makeHeldCase({
+    requirements: [
+      { id: 'beans', kind: 'ingredient', description: 'Beans', quantity: 4, unit: 'can' },
+    ],
+    requirementLinks: [
+      {
+        localCaseId: 'help-case:test-hash',
+        requirementId: 'beans',
+        payloadHash: 'test-hash',
+        circleId: 'circle-a',
+        authorityNeedId: 'need-a',
+        pouredAt: 't1',
+      },
+      {
+        localCaseId: 'help-case:test-hash',
+        requirementId: 'beans',
+        payloadHash: 'test-hash',
+        circleId: 'circle-b',
+        authorityNeedId: 'need-b',
+        pouredAt: 't2',
+      },
+    ],
+  });
+
+  const [residual] = projectHelpSlipResidual(held, [
+    { needId: 'need-a', confirmedUnits: 1 },
+    { needId: 'need-b', confirmedUnits: 1 },
+  ]);
+
+  assert.equal(residual.confirmedUnits, 1);
+  assert.equal(residual.confirmedUnitsExact, false);
+  assert.equal(residual.confirmedResidual, 3);
+  assert.equal(residual.confirmationBasis, 'ambiguous-multi-link-lower-bound');
+  assert.ok(residual.warnings.includes('MULTI_LINK_CONFIRMATION_AMBIGUOUS'));
+});
+
+test('multi-Campfire residual deduplicates attributable confirmation occurrences', () => {
+  const held = makeHeldCase({
+    requirements: [
+      { id: 'beans', kind: 'ingredient', description: 'Beans', quantity: 4, unit: 'can' },
+    ],
+    requirementLinks: [
+      {
+        localCaseId: 'help-case:test-hash',
+        requirementId: 'beans',
+        payloadHash: 'test-hash',
+        circleId: 'circle-a',
+        authorityNeedId: 'need-a',
+        pouredAt: 't1',
+      },
+      {
+        localCaseId: 'help-case:test-hash',
+        requirementId: 'beans',
+        payloadHash: 'test-hash',
+        circleId: 'circle-b',
+        authorityNeedId: 'need-b',
+        pouredAt: 't2',
+      },
+    ],
+  });
+
+  const [sameOccurrence] = projectHelpSlipResidual(held, [
+    {
+      needId: 'need-a',
+      confirmedUnits: 1,
+      confirmationOccurrences: [{ occurrenceRef: 'confirm-1', confirmedUnits: 1 }],
+    },
+    {
+      needId: 'need-b',
+      confirmedUnits: 1,
+      confirmationOccurrences: [{ occurrenceRef: 'confirm-1', confirmedUnits: 1 }],
+    },
+  ]);
+
+  assert.equal(sameOccurrence.confirmedUnits, 1);
+  assert.equal(sameOccurrence.confirmedUnitsExact, true);
+  assert.equal(sameOccurrence.confirmedResidual, 3);
+  assert.equal(sameOccurrence.confirmationBasis, 'deduplicated-occurrences');
+
+  const [distinctOccurrences] = projectHelpSlipResidual(held, [
+    {
+      needId: 'need-a',
+      confirmedUnits: 1,
+      confirmationOccurrences: [{ occurrenceRef: 'confirm-1', confirmedUnits: 1 }],
+    },
+    {
+      needId: 'need-b',
+      confirmedUnits: 1,
+      confirmationOccurrences: [{ occurrenceRef: 'confirm-2', confirmedUnits: 1 }],
+    },
+  ]);
+
+  assert.equal(distinctOccurrences.confirmedUnits, 2);
+  assert.equal(distinctOccurrences.confirmedResidual, 2);
 });
