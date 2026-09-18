@@ -52,6 +52,10 @@ export function useJubilee(currentUser?: JubileeCurrentUser, activeCircleId?: st
     void refresh();
   }, [activeCircleId, gateway, refresh]);
 
+  const refreshSharedStateWithoutCatch = useCallback(async () => {
+    await gateway.refresh();
+  }, [gateway]);
+
   const runAndRefresh = useCallback(
     async <T,>(operation: () => Promise<CommandResult<T>>): Promise<CommandResult<T>> => {
       const result = await operation();
@@ -126,6 +130,7 @@ export function useJubilee(currentUser?: JubileeCurrentUser, activeCircleId?: st
     refreshing,
     refreshError,
     refresh,
+    refreshSharedStateWithoutCatch,
     addOffer,
     addSeed,
     openSharedNeedWithoutRefresh,
