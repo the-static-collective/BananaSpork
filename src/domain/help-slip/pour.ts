@@ -1,5 +1,13 @@
 import type { NeedProjection } from '../../lib/circle';
-import type { GardenHeldHelpCase } from './types';
+import type {
+  GardenHeldHelpCase,
+  RequirementCampfireLink,
+} from './types';
+import type {
+  CommandResult,
+  OpenSharedNeedInput,
+  OpenedSharedNeed,
+} from '../jubilee/contracts';
 
 export interface CampfireNeedCommand {
   title: string;
@@ -122,4 +130,65 @@ export function projectHelpSlipResidual(
       shared: link !== undefined,
     };
   });
+}
+
+
+export type PourHeldRequirementResult =
+  | { status: 'shared'; link: RequirementCampfireLink }
+  | { status: 'authority_failed'; error: string }
+  | { status: 'shared_refresh_failed'; link: RequirementCampfireLink; error: string }
+  | { status: 'already_shared'; link: RequirementCampfireLink };
+
+export async function pourHeldRequirement(args: {
+  heldCase: GardenHeldHelpCase;
+  preview: CampfirePourPreview;
+  openSharedNeed: (
+    input: OpenSharedNeedInput
+  ) => Promise<CommandResult<OpenedSharedNeed>>;
+  addRequirementLink: (link: RequirementCampfireLink) => void;
+  refreshSharedState: () => Promise<void>;
+  now: () => string;
+}): Promise<PourHeldRequirementResult> {
+  const existing = args.heldCase.requirementLinks.find(
+    (candidate) =>
+      candidate.requirementId === args.preview.requirementId &&
+      candidate.circleId === args.preview.circleId
+  );
+
+  if (existing) {
+    return { status: 'already_shared', link: existing };
+  }
+
+  const authorityResult = await args.openSharedNeed(args.preview.command);
+  if (!authorityResult.success || !authorityResult.data?.authorityNeedId) {
+    return {
+      status: 'authority_failed',
+      error: authorityResult.error || 'Shared need authority command failed.',
+    };
+  }
+
+  const link: RequirementCampfireLink = {
+    localCaseId: args.heldCase.localCaseId,
+    requirementId: args.preview.requirementId,
+    payloadHash: args.heldCase.payloadHash,
+    circleId: args.preview.circleId,
+    authorityNeedId: authorityResult.data.authorityNeedId,
+    pouredAt: args.now(),
+    ...(authorityResult.witnessReceipt?.id
+      ? { witnessReceiptId: authorityResult.witnessReceipt.id }
+      : {}),
+  };
+
+  args.addRequirementLink(link);
+
+  try {
+    await args.refreshSharedState();
+    return { status: 'shared', link };
+  } catch (error: unknown) {
+    return {
+      status: 'shared_refresh_failed',
+      link,
+      error: error instanceof Error ? error.message : 'Shared status refresh failed.',
+    };
+  }
 }
