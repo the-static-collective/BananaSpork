@@ -16,6 +16,46 @@ The product names describe separate responsibilities:
 Garden is a presentation layer over the existing Jubilee events and receipts. It
 does not create a second ledger or replacement ontology.
 
+
+## Garden Help Slip adapter
+
+Garden now has an experimental device-local handoff path:
+
+```
+Nourish Help Slip
+  -> Garden device HOLD
+  -> human review
+  -> per-requirement POUR
+  -> authenticated Jubilee need.opened
+```
+
+Import is not publication. A valid `fulfillment-envelope/v0` is first held on
+this device, with duplicate arrivals preserving one local demand identity.
+Nothing enters Supabase merely because a Help Slip was pasted or reviewed.
+
+POUR is explicit and per requirement. Quantity and unit are preserved from the
+source requirement; heterogeneous requirements are never flattened into a
+generic shared quantity. Source recipe IDs, envelope IDs, payload hashes, full
+purpose text, and unselected requirements remain local by default.
+
+The shared lifecycle remains:
+
+```
+need.opened
+  -> offer.pledged
+  -> offer.accepted / declined
+  -> fulfillment.reported
+  -> fulfillment.confirmed
+```
+
+A delivery report is not a receipt confirmation. Shared residual display is
+derived from confirmed units only.
+
+This v0 adds no QR import, helper matching, ranking, reputation, public routing,
+payments, cross-device HOLD sync, or new Supabase schema. It also does not prove
+live two-account RLS isolation or physical Android behavior; those remain
+separate verification frontiers.
+
 ## Current implementation
 
 - React 19 and Vite provide one client for web and Capacitor Android.

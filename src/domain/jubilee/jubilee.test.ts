@@ -1,5 +1,6 @@
 import { DemoJubileeGateway } from './DemoJubileeGateway';
-import { SupabaseJubileeGateway } from './SupabaseJubileeGateway';
+import { SupabaseJubileeGateway, parseOpenedSharedNeedAuthorityResult } from './SupabaseJubileeGateway';
+import type { OpenSharedNeedInput } from './contracts';
 import { envelopeFor, computeEventHash, verifyChain, type EventRow } from '../events';
 import { canonicalJson } from '../canonical';
 import { sha256Hex } from '../hashes';
@@ -85,6 +86,48 @@ async function runTests() {
       (supabaseMutationRes.error?.includes('Supabase authority plane is not connected') ||
        supabaseMutationRes.error?.includes('standalone offer is not supported')),
     'Standalone offer on SupabaseGateway returns explicit error'
+  );
+
+  const sharedNeedInput: OpenSharedNeedInput = {
+    title: 'Canned tomatoes',
+    summary: 'Canned tomatoes',
+    requestedItems: ['Canned tomatoes'],
+    unitLabel: 'can',
+    targetUnits: 2,
+    visibility: 'circle',
+  };
+
+  const demoSharedNeed = await demoGateway.openSharedNeed(sharedNeedInput);
+  assert(
+    demoSharedNeed.success === false &&
+      demoSharedNeed.error?.includes('authenticated shared Campfire'),
+    'Device demo refuses Help Slip publication into shared authority'
+  );
+
+  const missingAuthorityId = parseOpenedSharedNeedAuthorityResult({}, sharedNeedInput);
+  assert(
+    missingAuthorityId.success === false &&
+      missingAuthorityId.error === 'Authority response did not include a need aggregate ID.',
+    'Shared need parser refuses authority success without a real aggregate ID'
+  );
+
+  const parsedAuthority = parseOpenedSharedNeedAuthorityResult({
+    receipt: {
+      event: {
+        aggregateId: 'need-real-1',
+        eventId: 'event-real-1',
+        sequence: 12,
+        eventHash: 'a'.repeat(64),
+        previousHash: 'b'.repeat(64),
+        actor: { label: 'Household' },
+        occurredAt: '2026-09-18T15:20:00.000Z',
+      },
+    },
+  }, sharedNeedInput);
+  assert(
+    parsedAuthority.success === true &&
+      parsedAuthority.data?.authorityNeedId === 'need-real-1',
+    'Shared need parser returns only the real authority aggregate ID'
   );
 
   console.log('\n========================================');

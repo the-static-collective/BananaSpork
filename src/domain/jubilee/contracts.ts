@@ -16,6 +16,19 @@ export interface JubileeState {
   currentUser: JubileeCurrentUser;
 }
 
+export interface OpenSharedNeedInput {
+  title: string;
+  summary: string;
+  requestedItems: string[];
+  unitLabel: string;
+  targetUnits: number;
+  visibility: 'circle' | 'public_summary';
+}
+
+export interface OpenedSharedNeed {
+  authorityNeedId: string;
+}
+
 export interface CommandResult<T = void> {
   success: boolean;
   data?: T;
@@ -33,6 +46,7 @@ export interface JubileeGateway {
   
   addOffer(offer: Omit<BasketOffer, 'id' | 'timestamp'>): Promise<CommandResult<BasketOffer>>;
   addSeed(seed: Omit<ParticipationSeed, 'id' | 'timestamp'>): Promise<CommandResult<ParticipationSeed>>;
+  openSharedNeed(input: OpenSharedNeedInput): Promise<CommandResult<OpenedSharedNeed>>;
   pledgeNeed(seedId: string, needId: string, pledgedBy?: string): Promise<CommandResult<ParticipationSeed>>;
   acceptPledgedOffer(offerId: string): Promise<CommandResult>;
   declinePledgedOffer(offerId: string, reason?: string): Promise<CommandResult>;

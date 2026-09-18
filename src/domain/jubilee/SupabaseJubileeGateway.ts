@@ -2,6 +2,8 @@ import { BasketOffer, ParticipationSeed, WitnessReceipt, WitnessEventType } from
 import {
   CommandResult,
   JubileeCurrentUser,
+  OpenSharedNeedInput,
+  OpenedSharedNeed,
   JubileeGateway,
   JubileeState,
   RuntimeMode,
@@ -27,6 +29,50 @@ import {
   redeemInvitation,
 } from '../../lib/rpc.functions';
 import { supabasePublicConfig } from '../../integrations/supabase/config';
+
+export function parseOpenedSharedNeedAuthorityResult(
+  result: unknown,
+  input: OpenSharedNeedInput
+): CommandResult<OpenedSharedNeed> {
+  const event = (result as any)?.receipt?.event;
+  const authorityNeedId =
+    typeof event?.aggregateId === 'string' && event.aggregateId.trim().length > 0
+      ? event.aggregateId
+      : undefined;
+
+  if (!authorityNeedId) {
+    return {
+      success: false,
+      error: 'Authority response did not include a need aggregate ID.',
+    };
+  }
+
+  const witnessReceipt: WitnessReceipt | undefined =
+    typeof event.eventId === 'string' &&
+    typeof event.sequence === 'number' &&
+    typeof event.eventHash === 'string' &&
+    typeof event.previousHash === 'string' &&
+    typeof event.actor?.label === 'string' &&
+    typeof event.occurredAt === 'string'
+      ? {
+          id: event.eventId,
+          sequence: event.sequence,
+          sha256Hash: event.eventHash,
+          predecessorHash: event.previousHash,
+          actorName: event.actor.label,
+          eventType: 'need.opened',
+          title: input.title,
+          timestamp: event.occurredAt,
+          details: input.summary,
+        }
+      : undefined;
+
+  return {
+    success: true,
+    data: { authorityNeedId },
+    witnessReceipt,
+  };
+}
 
 export function projectSharedOffers(needs: NeedProjection[]): BasketOffer[] {
   return needs.flatMap((need) =>
@@ -288,6 +334,55 @@ export class SupabaseJubileeGateway implements JubileeGateway {
       return {
         success: false,
         error: err.message || 'Failed to open need on Supabase authority plane',
+      };
+    }
+  }
+
+
+  public async openSharedNeed(
+    input: OpenSharedNeedInput
+  ): Promise<CommandResult<OpenedSharedNeed>> {
+    if (!this.isConfigured() || !this.activeCircleId) {
+      return {
+        success: false,
+        error:
+          'Sharing a held Help Slip requires a configured, authenticated shared Campfire with an active membership.',
+      };
+    }
+
+    if (
+      !input.title.trim() ||
+      !input.summary.trim() ||
+      input.requestedItems.length === 0 ||
+      !input.unitLabel.trim() ||
+      !Number.isFinite(input.targetUnits) ||
+      input.targetUnits <= 0
+    ) {
+      return {
+        success: false,
+        error: 'Shared need input is invalid.',
+      };
+    }
+
+    try {
+      const head = await fetchCircleHead(this.activeCircleId);
+      const result = await openNeed({
+        circleId: this.activeCircleId,
+        expectedHead: head.head_hash,
+        idempotencyKey: newIdempotencyKey('open_help_slip_need'),
+        title: input.title,
+        summary: input.summary,
+        requestedItems: [...input.requestedItems],
+        unitLabel: input.unitLabel,
+        targetUnits: input.targetUnits,
+        visibility: input.visibility,
+      });
+
+      return parseOpenedSharedNeedAuthorityResult(result, input);
+    } catch (error: any) {
+      return {
+        success: false,
+        error: error?.message || 'Failed to open shared Help Slip need.',
       };
     }
   }

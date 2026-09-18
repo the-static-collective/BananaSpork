@@ -1,6 +1,12 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { BasketOffer, ParticipationSeed, WitnessReceipt } from '../../types';
-import { CommandResult, JubileeCurrentUser, JubileeState } from './contracts';
+import {
+  CommandResult,
+  JubileeCurrentUser,
+  JubileeState,
+  OpenSharedNeedInput,
+  OpenedSharedNeed,
+} from './contracts';
 import { getJubileeGateway } from './JubileeGateway';
 
 export function useJubilee(currentUser?: JubileeCurrentUser, activeCircleId?: string) {
@@ -46,6 +52,10 @@ export function useJubilee(currentUser?: JubileeCurrentUser, activeCircleId?: st
     void refresh();
   }, [activeCircleId, gateway, refresh]);
 
+  const refreshSharedStateWithoutCatch = useCallback(async () => {
+    await gateway.refresh();
+  }, [gateway]);
+
   const runAndRefresh = useCallback(
     async <T,>(operation: () => Promise<CommandResult<T>>): Promise<CommandResult<T>> => {
       const result = await operation();
@@ -67,6 +77,13 @@ export function useJubilee(currentUser?: JubileeCurrentUser, activeCircleId?: st
       return runAndRefresh(() => gateway.addSeed(seed));
     },
     [gateway, runAndRefresh]
+  );
+
+  const openSharedNeedWithoutRefresh = useCallback(
+    async (input: OpenSharedNeedInput): Promise<CommandResult<OpenedSharedNeed>> => {
+      return gateway.openSharedNeed(input);
+    },
+    [gateway]
   );
 
   const pledgeNeed = useCallback(
@@ -113,8 +130,10 @@ export function useJubilee(currentUser?: JubileeCurrentUser, activeCircleId?: st
     refreshing,
     refreshError,
     refresh,
+    refreshSharedStateWithoutCatch,
     addOffer,
     addSeed,
+    openSharedNeedWithoutRefresh,
     pledgeNeed,
     acceptPledgedOffer,
     declinePledgedOffer,
