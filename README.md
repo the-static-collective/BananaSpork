@@ -1,3 +1,5 @@
+> **Active edge:** `design/help-slip-garden-adapter-001` — current Garden Help Slip / RECEIVE → HOLD → POUR integration frontier. Implementation from PR #7 is merged here; PR #6 remains the promotion/review boundary toward `main`.
+
 # NanaSpork / BananaGram
 
 NanaSpork is an Android field instrument for household participation. Its Garden
