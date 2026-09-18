@@ -124,8 +124,13 @@ test('malformed persisted HOLD state fails closed', () => {
 import {
   buildCampfirePourPreview,
   projectHelpSlipResidual,
+  pourHeldRequirement,
 } from './pour';
-import type { GardenHeldHelpCase, FulfillmentRequirementV0 } from './types';
+import type {
+  GardenHeldHelpCase,
+  FulfillmentRequirementV0,
+  RequirementCampfireLink,
+} from './types';
 import type { NeedProjection } from '../../lib/circle';
 
 function makeHeldCase(options: {
@@ -278,4 +283,100 @@ test('reported support does not reduce residual; confirmed units do', () => {
     linkedNeed({ needId: 'need-1', targetUnits: 4, confirmedUnits: 2, unitLabel: 'can' }),
   ]);
   assert.equal(partiallyConfirmed[0].confirmedResidual, 2);
+});
+
+
+test('failed authority open creates no lineage link', async () => {
+  const held = makeHeldCase({
+    requirements: [
+      { id: 'ingredient:tomatoes', kind: 'ingredient', description: 'Tomatoes', quantity: 2, unit: 'can' },
+    ],
+  });
+  const preview = buildCampfirePourPreview(
+    held,
+    'ingredient:tomatoes',
+    { circleId: 'circle-1', circleLabel: 'Neighbors' }
+  );
+  let linkCalls = 0;
+
+  const result = await pourHeldRequirement({
+    heldCase: held,
+    preview,
+    openSharedNeed: async () => ({ success: false, error: 'no membership' }),
+    addRequirementLink: () => { linkCalls += 1; },
+    refreshSharedState: async () => {},
+    now: () => '2026-09-18T16:00:00.000Z',
+  });
+
+  assert.equal(result.status, 'authority_failed');
+  assert.equal(linkCalls, 0);
+});
+
+test('authority success is linked before refresh and refresh failure never reopens', async () => {
+  const held = makeHeldCase({
+    requirements: [
+      { id: 'ingredient:tomatoes', kind: 'ingredient', description: 'Tomatoes', quantity: 2, unit: 'can' },
+    ],
+  });
+  const preview = buildCampfirePourPreview(
+    held,
+    'ingredient:tomatoes',
+    { circleId: 'circle-1', circleLabel: 'Neighbors' }
+  );
+  let opens = 0;
+  const links: RequirementCampfireLink[] = [];
+
+  const result = await pourHeldRequirement({
+    heldCase: held,
+    preview,
+    openSharedNeed: async () => {
+      opens += 1;
+      return { success: true, data: { authorityNeedId: 'need-real-1' } };
+    },
+    addRequirementLink: (link) => { links.push(link); },
+    refreshSharedState: async () => { throw new Error('refresh failed'); },
+    now: () => '2026-09-18T16:00:00.000Z',
+  });
+
+  assert.equal(opens, 1);
+  assert.equal(links.length, 1);
+  assert.equal(links[0].authorityNeedId, 'need-real-1');
+  assert.equal(result.status, 'shared_refresh_failed');
+});
+
+test('existing requirement/circle lineage prevents duplicate publication', async () => {
+  const held = makeHeldCase({
+    requirements: [
+      { id: 'ingredient:tomatoes', kind: 'ingredient', description: 'Tomatoes', quantity: 2, unit: 'can' },
+    ],
+    requirementLinks: [{
+      localCaseId: 'help-case:test-hash',
+      requirementId: 'ingredient:tomatoes',
+      payloadHash: 'test-hash',
+      circleId: 'circle-1',
+      authorityNeedId: 'need-existing',
+      pouredAt: '2026-09-18T15:30:00.000Z',
+    }],
+  });
+  const preview = buildCampfirePourPreview(
+    held,
+    'ingredient:tomatoes',
+    { circleId: 'circle-1', circleLabel: 'Neighbors' }
+  );
+  let opens = 0;
+
+  const result = await pourHeldRequirement({
+    heldCase: held,
+    preview,
+    openSharedNeed: async () => {
+      opens += 1;
+      return { success: true, data: { authorityNeedId: 'should-not-exist' } };
+    },
+    addRequirementLink: () => {},
+    refreshSharedState: async () => {},
+    now: () => '2026-09-18T16:00:00.000Z',
+  });
+
+  assert.equal(result.status, 'already_shared');
+  assert.equal(opens, 0);
 });
