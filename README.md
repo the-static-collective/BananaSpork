@@ -1,4 +1,4 @@
-> **Active edge:** `feat/return-of-help-slip-001` — RETURN-OF-THE-HELP-SLIP integration frontier. The Garden Help Slip / RECEIVE → HOLD → POUR adapter is now canonical on `main`; this edge hardens multi-Campfire confirmation truth and the return-status membrane.
+> **Active edge:** `feat/campfire-conversation-field-proof-001` — live-field proof frontier. The Help Slip return membranes are canonical on `main`; this edge adds a member-scoped shared conversation plane and prepares FIELD-SPECIMEN-001 without collapsing conversation into Jubilee authority.
 
 # NanaSpork / BananaGram
 
@@ -18,6 +18,34 @@ The product names describe separate responsibilities:
 Garden is a presentation layer over the existing Jubilee events and receipts. It
 does not create a second ledger or replacement ontology.
 
+
+## Shared Campfire conversation
+
+This edge adds the first durable shared text conversation plane:
+
+```text
+authenticated Campfire member
+  -> circle_messages
+  -> member-scoped RLS
+  -> Realtime INSERT delivery
+  -> durable rehydration after restart
+```
+
+Messages are deliberately separate from `witness_events`. The browser sends only
+`circle_id + body`; `sender_user_id` is derived from `auth.uid()` and checked
+again by RLS. The table grants authenticated clients only `SELECT` and `INSERT`;
+there is no message update/delete surface in v0.
+
+The checked-in migration is a deployment candidate, not evidence that a live
+Supabase project has been changed. Apply it only to the intentionally selected
+BananaSpork project, then perform the two-account / hostile-nonmember isolation
+proof in [FIELD-SPECIMEN-001](docs/field-specimen-001.md).
+
+```text
+MESSAGE != WITNESS EVENT
+CONVERSATION != LEDGER
+CLIENT MESSAGE != CLIENT-ASSERTED SENDER IDENTITY
+```
 
 ## Garden Help Slip adapter
 
