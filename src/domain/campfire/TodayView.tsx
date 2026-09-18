@@ -28,6 +28,7 @@ interface TodayViewProps {
   runtimeMode: string;
   currentUser: { id: string; role: string };
   connectionPanel?: React.ReactNode;
+  helpSlipInbox?: React.ReactNode;
   onPledgeNeed: (seedId: string, needId: string, pledgedBy: string) => void;
   onAcceptOffer: (offerId: string) => void;
   onReportFulfillment: (offerId: string) => void;
@@ -47,6 +48,7 @@ export const TodayView: React.FC<TodayViewProps> = ({
   runtimeMode,
   currentUser,
   connectionPanel,
+  helpSlipInbox,
   onPledgeNeed,
   onAcceptOffer,
   onReportFulfillment,
@@ -68,6 +70,7 @@ export const TodayView: React.FC<TodayViewProps> = ({
   return (
     <div className="flex-1 bg-amber-50/60 overflow-y-auto p-3 sm:p-6 pb-24 md:pb-8 space-y-6 max-w-5xl mx-auto w-full">
       {connectionPanel}
+      {helpSlipInbox}
 
       {/* Header Banner */}
       <div className="bg-gradient-to-r from-amber-900 via-amber-950 to-amber-900 text-amber-50 p-4 sm:p-6 rounded-3xl border border-amber-800 shadow-md flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
