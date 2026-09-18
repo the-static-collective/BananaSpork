@@ -108,10 +108,12 @@ export function admitHelpSlipCarrier(rawText: string): HelpSlipAdmission {
     return { disposition: 'refused', carrierHash, reason: 'INVALID_DISCLOSURE' };
   }
 
+  const sourceSystem = parsed.source.system;
+  const sourceRecipeId = parsed.source.recipeId;
   if (
     !hasOnlyKeys(parsed.source, ['system'], ['recipeId']) ||
-    !isNonEmptyString(parsed.source.system) ||
-    (parsed.source.recipeId !== undefined && !isNonEmptyString(parsed.source.recipeId))
+    !isNonEmptyString(sourceSystem) ||
+    (sourceRecipeId !== undefined && !isNonEmptyString(sourceRecipeId))
   ) {
     return { disposition: 'refused', carrierHash, reason: 'INVALID_SHAPE' };
   }
@@ -156,14 +158,15 @@ export function admitHelpSlipCarrier(rawText: string): HelpSlipAdmission {
       return { disposition: 'refused', carrierHash, reason: 'INVALID_REQUIREMENT' };
     }
 
-    requirements.push({
+    const requirement: FulfillmentRequirementV0 = {
       id: value.id,
       kind: value.kind,
       description: value.description,
-      ...(quantity === undefined ? {} : { quantity }),
-      ...(unit === undefined ? {} : { unit }),
-      ...(neededBy === undefined ? {} : { neededBy }),
-    });
+    };
+    if (quantity !== undefined) requirement.quantity = quantity as number;
+    if (unit !== undefined) requirement.unit = unit as string;
+    if (neededBy !== undefined) requirement.neededBy = neededBy as string;
+    requirements.push(requirement);
   }
 
   const payload: ImportedFulfillmentEnvelopeV0 = {
@@ -173,8 +176,8 @@ export function admitHelpSlipCarrier(rawText: string): HelpSlipAdmission {
     createdAt: parsed.createdAt,
     requirements,
     source: {
-      system: parsed.source.system,
-      ...(parsed.source.recipeId === undefined ? {} : { recipeId: parsed.source.recipeId }),
+      system: sourceSystem as string,
+      ...(sourceRecipeId === undefined ? {} : { recipeId: sourceRecipeId as string }),
     },
     disclosure: {
       includesOnlySelectedResiduals: true,
