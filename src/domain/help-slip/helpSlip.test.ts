@@ -549,3 +549,39 @@ test('multi-Campfire residual deduplicates attributable confirmation occurrences
   assert.equal(distinctOccurrences.confirmedUnits, 2);
   assert.equal(distinctOccurrences.confirmedResidual, 2);
 });
+
+
+test('multi-Campfire projection marks missing linked status instead of claiming exact zero', () => {
+  const held = makeHeldCase({
+    requirements: [
+      { id: 'beans', kind: 'ingredient', description: 'Beans', quantity: 4, unit: 'can' },
+    ],
+    requirementLinks: [
+      {
+        localCaseId: 'help-case:test-hash',
+        requirementId: 'beans',
+        payloadHash: 'test-hash',
+        circleId: 'circle-a',
+        authorityNeedId: 'need-a',
+        pouredAt: 't1',
+      },
+      {
+        localCaseId: 'help-case:test-hash',
+        requirementId: 'beans',
+        payloadHash: 'test-hash',
+        circleId: 'circle-b',
+        authorityNeedId: 'need-missing',
+        pouredAt: 't2',
+      },
+    ],
+  });
+
+  const [residual] = projectHelpSlipResidual(held, [
+    { needId: 'need-a', confirmedUnits: 0 },
+  ]);
+
+  assert.equal(residual.confirmedUnitsExact, false);
+  assert.equal(residual.confirmationBasis, 'ambiguous-multi-link-lower-bound');
+  assert.ok(residual.warnings.includes('LINKED_NEED_STATUS_MISSING:need-missing'));
+  assert.ok(residual.warnings.includes('MULTI_LINK_CONFIRMATION_AMBIGUOUS'));
+});
