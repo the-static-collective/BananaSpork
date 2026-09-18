@@ -112,7 +112,7 @@ export function projectHelpSlipResidual(
               authorityNeedId: link.authorityNeedId,
             }),
         confirmedUnits,
-        qualitativeResolved: Boolean(need && need.confirmedUnits >= need.targetUnits),
+        qualitativeResolved: Boolean(need && need.confirmedUnits >= 1),
         shared: link !== undefined,
       };
     }
