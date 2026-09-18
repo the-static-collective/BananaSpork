@@ -6,6 +6,8 @@ import {
   JubileeCurrentUser,
   JubileeGateway,
   JubileeState,
+  OpenSharedNeedInput,
+  OpenedSharedNeed,
   RuntimeMode,
 } from './contracts';
 
@@ -206,6 +208,15 @@ export class DemoJubileeGateway implements JubileeGateway {
 
     this.notify();
     return { success: true, data: seed, witnessReceipt };
+  }
+
+  public async openSharedNeed(
+    _input: OpenSharedNeedInput
+  ): Promise<CommandResult<OpenedSharedNeed>> {
+    return {
+      success: false,
+      error: 'Sharing a held Help Slip requires an authenticated shared Campfire.',
+    };
   }
 
   public async pledgeNeed(
