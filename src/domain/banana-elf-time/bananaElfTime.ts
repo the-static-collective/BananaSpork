@@ -61,10 +61,10 @@ const asPhase = (value: number): BananaElfTimeState['phaseInCycle'] =>
 function makeReceipt(
   kind: BananaElfReceiptKind,
   state: Omit<BananaElfTimeState, 'lastReceipt'>,
-  extra: Pick<
+  extra: Partial<Pick<
     BananaElfReceipt,
     'reflection' | 'releasedClaims' | 'preservedWitnesses'
-  > = {}
+  >> = {}
 ): BananaElfReceipt {
   return {
     kind,
