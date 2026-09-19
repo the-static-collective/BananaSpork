@@ -15,7 +15,7 @@
     "preview": "vite preview",
     "clean": "node scripts/clean.mjs",
     "lint": "tsc --noEmit",
-    "test": "node --import tsx src/domain/jubilee/jubilee.test.ts && node --import tsx src/domain/donkey/donkey.test.ts && node --import tsx src/domain/campfire/campfire.test.ts && node --import tsx src/domain/conversation/conversation.test.ts && node --import tsx src/domain/intelligence/intelligence.test.ts && node --import tsx tests/canonical.test.ts && node --import tsx tests/runtime-config.test.ts && node --import tsx src/domain/help-slip/helpSlip.test.ts",
+    "test": "node --import tsx src/domain/jubilee/jubilee.test.ts && node --import tsx src/domain/donkey/donkey.test.ts && node --import tsx src/domain/campfire/campfire.test.ts && node --import tsx src/domain/conversation/conversation.test.ts && node --import tsx src/domain/intelligence/intelligence.test.ts && node --import tsx tests/canonical.test.ts && node --import tsx tests/runtime-config.test.ts && node --import tsx src/domain/help-slip/helpSlip.test.ts && node --import tsx src/domain/banana-elf-time/bananaElfTime.test.ts",
     "android:sync": "npm run build:client && npx cap sync android",
     "android:open": "npx cap open android",
     "android:run": "npx cap run android",
