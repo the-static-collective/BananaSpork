@@ -1,4 +1,4 @@
-> **Active edge:** `feat/campfire-conversation-field-proof-001` — live-field proof frontier. The Help Slip return membranes are canonical on `main`; this edge adds a member-scoped shared conversation plane and prepares FIELD-SPECIMEN-001 without collapsing conversation into Jubilee authority.
+> **Current public edge:** **FIELD-SPECIMEN-001**. The Help Slip return loop and member-scoped Campfire conversation plane are now on `main`. The next proof is an intentionally targeted live deployment: verify two-account/member isolation, hostile non-member refusal, restart rehydration, and one real Help Slip through report → confirmation → return. Database migration presence is not field proof.
 
 # NanaSpork / BananaGram
 
