@@ -103,6 +103,21 @@ horizon, one action, no spawn budget, and no promotion authority.
 See [12:01 Door 001](docs/1201-door.md) and
 `src/domain/twelve-oh-one/twelveOhOne.ts`.
 
+## Banana Relay specimen
+
+Banana Relay composes completed 12:01 work without carrying an immortal worker
+forward. A receipted ELF may leave **fruit** (what changed), **seed** (a proposed
+next door), and **compost** (failed attempts, rejected assumptions, dead paths,
+or uncertainty).
+
+```text
+ELF_n -> ACT -> RECEIPT -> FRUIT / SEED / COMPOST -> no successor authority
+```
+
+Relay seeds can be planted into a fresh witnessed 12:01 state, but they remain
+proposals: they cannot select themselves, cross themselves, or hatch a successor
+ELF. See [Banana Relay 001](docs/banana-relay-001.md).
+
 ## Current implementation
 
 - React 19 and Vite provide one client for web and Capacitor Android.
