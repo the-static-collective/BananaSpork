@@ -86,6 +86,23 @@ payments, cross-device HOLD sync, or new Supabase schema. It also does not prove
 live two-account RLS isolation or physical Android behavior; those remain
 separate verification frontiers.
 
+## 12:01 Door specimen
+
+BananaSpork now carries an experimental threshold machine for turning one
+witnessed possibility into one bounded, receipted consequence.
+
+```text
+HIGH NOON -> PROPOSE -> SELECT -> 12:01 / CROSS -> HATCH -> ONE ACT -> RECEIPT
+```
+
+The important negative rule is executable: a wall clock may report `12:01`,
+but it has no crossing authority. Recommendation is not selection, a selected
+door is not yet a crossing, and the local ELF receives one declared write
+horizon, one action, no spawn budget, and no promotion authority.
+
+See [12:01 Door 001](docs/1201-door.md) and
+`src/domain/twelve-oh-one/twelveOhOne.ts`.
+
 ## Current implementation
 
 - React 19 and Vite provide one client for web and Capacitor Android.
