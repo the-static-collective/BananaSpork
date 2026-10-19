@@ -150,3 +150,41 @@ test('FIELD-001 tampering with one signal is a refused conflict, not a second de
   if (conflict.disposition === 'refused') assert.equal(conflict.reason, 'ENVELOPE_ID_CONFLICT');
   assert.equal(store.listHeldHelpCases().length, 1);
 });
+
+test('FIELD-001 freedom gate: unshared local HOLD can be released, shared lineage cannot be quietly erased', () => {
+  const storeData = new MemoryStorage();
+  const store = new HelpSlipHoldStore(storeData);
+  const candidate = preparePennyCandidate(candidateText);
+  assert.equal(candidate.disposition, 'prepared');
+  if (candidate.disposition !== 'prepared') return;
+  const first = store.holdImportedHelpSlip(candidate.carrier, {
+    occurrenceId: 'release-test-one', receivedAt: at,
+  });
+  assert.equal(first.disposition, 'held');
+  if (first.disposition !== 'held') return;
+  assert.equal(store.discardUnsharedHelpCase(first.heldCase.localCaseId), true);
+  assert.equal(store.discardUnsharedHelpCase(first.heldCase.localCaseId), false);
+  assert.equal(new HelpSlipHoldStore(storeData).listHeldHelpCases().length, 0);
+
+  // Reimport is possible as a new explicitly reviewed local choice.
+  const again = store.holdImportedHelpSlip(candidate.carrier, {
+    occurrenceId: 'release-test-two', receivedAt: at,
+  });
+  assert.equal(again.disposition, 'held');
+  if (again.disposition !== 'held') return;
+  store.addRequirementLink(again.heldCase.localCaseId, {
+    localCaseId: again.heldCase.localCaseId,
+    requirementId: 'item-beans-001',
+    payloadHash: again.heldCase.payloadHash,
+    circleId: 'mock-circle',
+    authorityNeedId: 'mock-need',
+    pouredAt: at,
+  });
+  assert.throws(
+    () => store.discardUnsharedHelpCase(again.heldCase.localCaseId),
+    /SHARED_HELP_SLIP_REQUIRES_SEPARATE_WITHDRAWAL/
+  );
+  const restored = new HelpSlipHoldStore(storeData).listHeldHelpCases();
+  assert.equal(restored.length, 1);
+  assert.equal(restored[0].requirementLinks.length, 1);
+});
