@@ -1,0 +1,21 @@
+{
+  "schema": "penny-box-candidate/v0",
+  "signalId": "sample-grocery-001",
+  "createdAt": "2026-10-19T21:00:00.000Z",
+  "purpose": "Practice need: neighbor groceries",
+  "requirements": [
+    {
+      "id": "item-beans-001",
+      "kind": "goods",
+      "description": "Dry beans (synthetic practice)",
+      "quantity": 2,
+      "unit": "bag"
+    },
+    {
+      "id": "ride-grocery-001",
+      "kind": "transport",
+      "description": "One grocery ride (synthetic practice)"
+    }
+  ],
+  "status": "candidate"
+}
