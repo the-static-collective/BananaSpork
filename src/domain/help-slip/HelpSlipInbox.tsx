@@ -24,6 +24,7 @@ interface HelpSlipInboxProps {
     heldCase: GardenHeldHelpCase,
     preview: CampfirePourPreview
   ) => Promise<PourHeldRequirementResult>;
+  onDiscard: (localCaseId: string) => void;
 }
 
 function newOccurrenceId(): string {
@@ -41,6 +42,7 @@ export const HelpSlipInbox: React.FC<HelpSlipInboxProps> = ({
   sharedState,
   onHold,
   onPour,
+  onDiscard,
 }) => {
   const [importOpen, setImportOpen] = useState(false);
   const [rawText, setRawText] = useState('');
@@ -264,6 +266,7 @@ export const HelpSlipInbox: React.FC<HelpSlipInboxProps> = ({
           sharedState={sharedState}
           onClose={() => setSelectedCaseId(undefined)}
           onPour={onPour}
+          onDiscard={onDiscard}
         />
       )}
     </section>
