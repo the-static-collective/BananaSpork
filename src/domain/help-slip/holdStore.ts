@@ -263,6 +263,23 @@ export class HelpSlipHoldStore {
     return validated.map(cloneCase);
   }
 
+  /**
+   * RELEASE BEFORE POUR: a local-only held case may be discarded completely.
+   * This does not claim to revoke exported copies or published shared needs.
+   * A linked case must use a future, authorized withdrawal procedure instead
+   * of silently deleting the device's only source -> authority lineage.
+   */
+  discardUnsharedHelpCase(localCaseId: string): boolean {
+    const cases = this.listHeldHelpCases();
+    const existing = cases.find((item) => item.localCaseId === localCaseId);
+    if (!existing) return false;
+    if (existing.requirementLinks.length > 0) {
+      throw new Error('SHARED_HELP_SLIP_REQUIRES_SEPARATE_WITHDRAWAL');
+    }
+    this.persist(cases.filter((item) => item.localCaseId !== localCaseId));
+    return true;
+  }
+
   getHeldHelpCase(localCaseId: string): GardenHeldHelpCase | undefined {
     const found = this.listHeldHelpCases().find((candidate) => candidate.localCaseId === localCaseId);
     return found ? cloneCase(found) : undefined;
