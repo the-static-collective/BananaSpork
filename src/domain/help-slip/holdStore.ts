@@ -89,6 +89,19 @@ export class HelpSlipHoldStore {
     const existingIndex = cases.findIndex(
       (candidate) => candidate.payloadHash === admission.payloadHash
     );
+    // One source envelope identity cannot silently become two held demands.
+    // Changed candidates require explicit human reconciliation rather than
+    // creating parallel demand from a rewritten request.
+    if (cases.some((candidate) =>
+      candidate.envelopeId === admission.payload.envelopeId &&
+      candidate.payloadHash !== admission.payloadHash
+    )) {
+      return {
+        disposition: 'refused',
+        reason: 'ENVELOPE_ID_CONFLICT',
+        carrierHash: admission.carrierHash,
+      };
+    }
     const arrival: HelpSlipArrival = {
       occurrenceId: metadata.occurrenceId,
       receivedAt: metadata.receivedAt,
