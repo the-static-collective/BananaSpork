@@ -115,8 +115,8 @@ export function preparePennyCandidate(raw: string): PennyCandidatePreparation {
       id: item.id,
       kind: item.kind as string,
       description: item.description,
-      ...(item.quantity === undefined ? {} : { quantity: item.quantity, unit: item.unit as string }),
-      ...(item.neededBy === undefined ? {} : { neededBy: item.neededBy }),
+      ...(item.quantity === undefined ? {} : { quantity: item.quantity as number, unit: item.unit as string }),
+      ...(item.neededBy === undefined ? {} : { neededBy: item.neededBy as string }),
     });
   }
 
