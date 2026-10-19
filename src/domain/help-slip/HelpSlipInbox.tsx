@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { admitHelpSlipCarrier } from './envelope';
+import { preparePennyCandidate, PENNY_CANDIDATE_SCHEMA, PENNY_SOURCE_LABEL } from '../penny/pennyHelpSlip';
 import {
   describeHeldHelpCase,
   type CampfirePourPreview,
@@ -23,6 +24,7 @@ interface HelpSlipInboxProps {
     heldCase: GardenHeldHelpCase,
     preview: CampfirePourPreview
   ) => Promise<PourHeldRequirementResult>;
+  onDiscard: (localCaseId: string) => void;
 }
 
 function newOccurrenceId(): string {
@@ -40,10 +42,13 @@ export const HelpSlipInbox: React.FC<HelpSlipInboxProps> = ({
   sharedState,
   onHold,
   onPour,
+  onDiscard,
 }) => {
   const [importOpen, setImportOpen] = useState(false);
   const [rawText, setRawText] = useState('');
   const [previewedRaw, setPreviewedRaw] = useState<string>();
+  const [pennyCandidate, setPennyCandidate] = useState(false);
+  const [pennyReviewed, setPennyReviewed] = useState(false);
   const [error, setError] = useState<string>();
   const [selectedCaseId, setSelectedCaseId] = useState<string>();
 
@@ -54,18 +59,44 @@ export const HelpSlipInbox: React.FC<HelpSlipInboxProps> = ({
   const previewAdmission = previewedRaw ? admitHelpSlipCarrier(previewedRaw) : undefined;
 
   const handlePreview = () => {
-    const admission = admitHelpSlipCarrier(rawText);
+    let carrier = rawText;
+    let isPenny = false;
+    try {
+      const parsed: unknown = JSON.parse(rawText);
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed) &&
+          'schema' in parsed && parsed.schema === PENNY_CANDIDATE_SCHEMA) {
+        const prepared = preparePennyCandidate(rawText);
+        if (prepared.disposition === 'refused') {
+          setError(`PENNY candidate refused: ${prepared.reason}`);
+          setPreviewedRaw(undefined);
+          return;
+        }
+        carrier = prepared.carrier;
+        isPenny = true;
+      }
+    } catch {
+      // The normal Help Slip admission path reports invalid JSON.
+    }
+    const admission = admitHelpSlipCarrier(carrier);
     if (admission.disposition === 'refused') {
       setError(`Import refused: ${admission.reason}`);
       setPreviewedRaw(undefined);
       return;
     }
     setError(undefined);
-    setPreviewedRaw(rawText);
+    // Importing the already-normalized fulfillment envelope must not bypass
+    // the same explicit human review as importing a raw PENNY candidate.
+    setPennyCandidate(isPenny || admission.payload.source.system === PENNY_SOURCE_LABEL);
+    setPennyReviewed(false);
+    setPreviewedRaw(carrier);
   };
 
   const handleHold = () => {
     if (!previewedRaw) return;
+    if (pennyCandidate && !pennyReviewed) {
+      setError('Review the PENNY candidate before holding it on this device.');
+      return;
+    }
     try {
       const result = onHold(previewedRaw, {
         occurrenceId: newOccurrenceId(),
@@ -77,6 +108,8 @@ export const HelpSlipInbox: React.FC<HelpSlipInboxProps> = ({
       }
       setRawText('');
       setPreviewedRaw(undefined);
+      setPennyCandidate(false);
+      setPennyReviewed(false);
       setImportOpen(false);
       setSelectedCaseId(result.heldCase.localCaseId);
     } catch (caught: unknown) {
@@ -100,6 +133,7 @@ export const HelpSlipInbox: React.FC<HelpSlipInboxProps> = ({
             setImportOpen((value) => !value);
             setError(undefined);
             setPreviewedRaw(undefined);
+            setPennyReviewed(false);
           }}
           className="min-h-[44px] px-3 rounded-xl bg-amber-900 text-amber-50 text-xs font-black"
         >
@@ -114,10 +148,11 @@ export const HelpSlipInbox: React.FC<HelpSlipInboxProps> = ({
             onChange={(event) => {
               setRawText(event.target.value);
               setPreviewedRaw(undefined);
+              setPennyReviewed(false);
               setError(undefined);
             }}
             rows={6}
-            placeholder="Paste fulfillment-envelope/v0 JSON here"
+            placeholder="Paste fulfillment-envelope/v0 or penny-box-candidate/v0 JSON here"
             className="w-full rounded-xl border border-amber-300 bg-white p-3 text-xs font-mono"
           />
           <div className="grid grid-cols-2 gap-2">
@@ -126,6 +161,7 @@ export const HelpSlipInbox: React.FC<HelpSlipInboxProps> = ({
                 setImportOpen(false);
                 setRawText('');
                 setPreviewedRaw(undefined);
+                setPennyReviewed(false);
                 setError(undefined);
               }}
               className="min-h-[44px] rounded-xl border border-amber-300 bg-white text-xs font-bold text-amber-900"
@@ -157,9 +193,27 @@ export const HelpSlipInbox: React.FC<HelpSlipInboxProps> = ({
                   </div>
                 ))}
               </div>
+              {pennyCandidate && (
+                <div className="rounded-lg border border-amber-400 bg-amber-50 p-2 space-y-2 text-amber-950">
+                  <strong>PENNY BOX candidate — not independently verified.</strong>
+                  <p>Review for private details, requester permission, and accuracy. This
+                  preparation neither certifies a steward nor authorizes publication.</p>
+                  <label className="flex gap-2 items-start">
+                    <input
+                      type="checkbox"
+                      checked={pennyReviewed}
+                      onChange={(event) => setPennyReviewed(event.target.checked)}
+                      className="mt-1"
+                    />
+                    <span>I reviewed this candidate for a device-local HOLD. Any later
+                    Campfire sharing requires a separate human POUR.</span>
+                  </label>
+                </div>
+              )}
               <div className="font-bold">Not shared. Holding is device-local.</div>
               <button
                 onClick={handleHold}
+                disabled={pennyCandidate && !pennyReviewed}
                 className="w-full min-h-[44px] rounded-xl bg-emerald-800 text-emerald-50 text-xs font-black"
               >
                 Hold on this device
@@ -212,6 +266,7 @@ export const HelpSlipInbox: React.FC<HelpSlipInboxProps> = ({
           sharedState={sharedState}
           onClose={() => setSelectedCaseId(undefined)}
           onPour={onPour}
+          onDiscard={onDiscard}
         />
       )}
     </section>

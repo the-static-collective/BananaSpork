@@ -34,7 +34,8 @@ export type HelpSlipRefusalReason =
   | 'QUANTITY_WITHOUT_UNIT'
   | 'INVALID_QUANTITY'
   | 'INVALID_DISCLOSURE'
-  | 'UNSUPPORTED_SOURCE_STATUS';
+  | 'UNSUPPORTED_SOURCE_STATUS'
+  | 'ENVELOPE_ID_CONFLICT';
 
 export type HelpSlipAdmission =
   | {

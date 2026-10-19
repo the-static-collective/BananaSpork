@@ -14,6 +14,7 @@ interface HelpSlipDetailModalProps {
   linkedNeeds: LinkedNeedConfirmation[];
   sharedState: 'current' | 'stale' | 'unavailable';
   onClose: () => void;
+  onDiscard: (localCaseId: string) => void;
   onPour: (
     heldCase: GardenHeldHelpCase,
     preview: CampfirePourPreview
@@ -26,12 +27,14 @@ export const HelpSlipDetailModal: React.FC<HelpSlipDetailModalProps> = ({
   linkedNeeds,
   sharedState,
   onClose,
+  onDiscard,
   onPour,
 }) => {
   const [selectedRequirementId, setSelectedRequirementId] = useState<string>();
   const [preview, setPreview] = useState<CampfirePourPreview>();
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<string>();
+  const [confirmDiscard, setConfirmDiscard] = useState(false);
 
   const residuals = useMemo(
     () => projectHelpSlipResidual(heldCase, linkedNeeds),
@@ -61,7 +64,7 @@ export const HelpSlipDetailModal: React.FC<HelpSlipDetailModalProps> = ({
   };
 
   const handlePour = async () => {
-    if (!preview) return;
+    if (!preview || busy || confirmDiscard) return;
     setBusy(true);
     setNotice(undefined);
     try {
@@ -104,6 +107,13 @@ export const HelpSlipDetailModal: React.FC<HelpSlipDetailModalProps> = ({
 
         <div className="rounded-2xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900 space-y-1">
           <div><strong>Source:</strong> {heldCase.payload.source.system}</div>
+          {heldCase.payload.source.system.startsWith('PENNY BOX') && (
+            <div className="rounded-lg border border-amber-400 bg-amber-100 p-2 font-semibold">
+              PENNY BOX candidate: local import does not establish requester identity,
+              consent, steward approval, or actual need. Only share an individually
+              reviewed requirement with permission from its source.
+            </div>
+          )}
           {heldCase.payload.source.recipeId && (
             <div><strong>Recipe ID:</strong> {heldCase.payload.source.recipeId}</div>
           )}
@@ -146,6 +156,48 @@ export const HelpSlipDetailModal: React.FC<HelpSlipDetailModalProps> = ({
           })}
         </div>
 
+        {heldCase.requirementLinks.length === 0 ? (
+          <div className="rounded-2xl border border-rose-200 bg-rose-50 p-3 space-y-2 text-xs text-rose-900">
+            <div className="font-black">Release this device-local HOLD</div>
+            <p>No requirement has been poured into Campfire. You can remove this
+            local copy without publishing anything. This does not retract any
+            copy you may have sent elsewhere.</p>
+            {!confirmDiscard ? (
+              <button
+                type="button"
+                onClick={() => setConfirmDiscard(true)}
+                disabled={busy}
+                className="min-h-[44px] px-3 rounded-xl border border-rose-300 bg-white font-bold"
+              >Choose local release</button>
+            ) : (
+              <div className="space-y-2">
+                <p><strong>Confirm local deletion.</strong> This cannot be undone here.</p>
+                <div className="flex gap-2 flex-wrap">
+                  <button type="button" className="min-h-[44px] px-3 rounded-xl border bg-white"
+                    onClick={() => setConfirmDiscard(false)}>Keep held</button>
+                  <button type="button" disabled={busy} className="min-h-[44px] px-3 rounded-xl bg-rose-800 text-white font-bold disabled:opacity-50"
+                    onClick={() => {
+                      if (busy) return;
+                      try {
+                        onDiscard(heldCase.localCaseId);
+                        onClose();
+                      } catch (error: unknown) {
+                        setNotice(error instanceof Error ? error.message : 'Could not discard local HOLD.');
+                        setConfirmDiscard(false);
+                      }
+                    }}>Release from this device</button>
+                </div>
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="rounded-2xl border border-amber-300 bg-amber-50 p-3 text-xs text-amber-900">
+            This Help Slip already has shared Campfire lineage. Removing this device
+            copy would not withdraw the shared request or recover other copies.
+            A separate authorized withdrawal process is required.
+          </div>
+        )}
+
         <div className="rounded-2xl border border-amber-300 bg-amber-50 p-3 space-y-3">
           <div>
             <div className="font-black text-sm text-amber-950">Pour one requirement</div>
@@ -180,6 +232,7 @@ export const HelpSlipDetailModal: React.FC<HelpSlipDetailModalProps> = ({
               </select>
               <button
                 onClick={handlePreview}
+                disabled={busy || confirmDiscard}
                 className="w-full min-h-[44px] rounded-xl bg-amber-900 text-amber-50 text-xs font-black"
               >
                 Preview Pour
@@ -212,7 +265,7 @@ export const HelpSlipDetailModal: React.FC<HelpSlipDetailModalProps> = ({
                 </button>
                 <button
                   onClick={() => void handlePour()}
-                  disabled={busy}
+                  disabled={busy || confirmDiscard}
                   className="min-h-[44px] rounded-xl bg-emerald-800 text-emerald-50 font-black disabled:opacity-50"
                 >
                   {busy ? 'Sharing…' : 'Pour into this Campfire'}

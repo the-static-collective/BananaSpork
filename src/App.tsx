@@ -176,27 +176,47 @@ export default function App() {
     return result;
   };
 
+  // This device may not discard the source while a shared-authority command
+  // is outstanding: otherwise a successful remote POUR could lose its local link.
+  const activeHelpSlipPours = React.useRef(new Set<string>());
+
+  const handleDiscardHelpSlip = (localCaseId: string): void => {
+    if (activeHelpSlipPours.current.has(localCaseId)) {
+      throw new Error('HELP_SLIP_POUR_IN_PROGRESS');
+    }
+    helpSlipStore.discardUnsharedHelpCase(localCaseId);
+    reloadHeldHelpCases();
+  };
+
   const handlePourHelpSlip = async (
     heldCase: GardenHeldHelpCase,
     preview: CampfirePourPreview
   ): Promise<PourHeldRequirementResult> => {
-    const result = await pourHeldRequirement({
-      heldCase,
-      preview,
-      openSharedNeed: openSharedNeedWithoutRefresh,
-      addRequirementLink: (link) => {
-        helpSlipStore.addRequirementLink(heldCase.localCaseId, link);
-        reloadHeldHelpCases();
-      },
-      refreshSharedState: refreshSharedStateWithoutCatch,
-      now: () => new Date().toISOString(),
-    });
-
-    if (result.status === 'shared' || result.status === 'shared_refresh_failed') {
-      reloadHeldHelpCases();
+    if (activeHelpSlipPours.current.has(heldCase.localCaseId)) {
+      return { status: 'authority_failed', error: 'Another POUR is in progress for this Help Slip.' };
     }
+    activeHelpSlipPours.current.add(heldCase.localCaseId);
+    try {
+      const result = await pourHeldRequirement({
+        heldCase,
+        preview,
+        openSharedNeed: openSharedNeedWithoutRefresh,
+        addRequirementLink: (link) => {
+          helpSlipStore.addRequirementLink(heldCase.localCaseId, link);
+          reloadHeldHelpCases();
+        },
+        refreshSharedState: refreshSharedStateWithoutCatch,
+        now: () => new Date().toISOString(),
+      });
 
-    return result;
+      if (result.status === 'shared' || result.status === 'shared_refresh_failed') {
+        reloadHeldHelpCases();
+      }
+
+      return result;
+    } finally {
+      activeHelpSlipPours.current.delete(heldCase.localCaseId);
+    }
   };
 
   // UI Modals
@@ -825,6 +845,7 @@ export default function App() {
                   sharedState={helpSlipSharedState}
                   onHold={handleHoldHelpSlip}
                   onPour={handlePourHelpSlip}
+                  onDiscard={handleDiscardHelpSlip}
                 />
               </div>
             }
