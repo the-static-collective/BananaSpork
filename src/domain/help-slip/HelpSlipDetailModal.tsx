@@ -104,6 +104,13 @@ export const HelpSlipDetailModal: React.FC<HelpSlipDetailModalProps> = ({
 
         <div className="rounded-2xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900 space-y-1">
           <div><strong>Source:</strong> {heldCase.payload.source.system}</div>
+          {heldCase.payload.source.system.startsWith('PENNY BOX') && (
+            <div className="rounded-lg border border-amber-400 bg-amber-100 p-2 font-semibold">
+              PENNY BOX candidate: local import does not establish requester identity,
+              consent, steward approval, or actual need. Only share an individually
+              reviewed requirement with permission from its source.
+            </div>
+          )}
           {heldCase.payload.source.recipeId && (
             <div><strong>Recipe ID:</strong> {heldCase.payload.source.recipeId}</div>
           )}
