@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { admitHelpSlipCarrier } from './envelope';
-import { preparePennyCandidate, PENNY_CANDIDATE_SCHEMA } from '../penny/pennyHelpSlip';
+import { preparePennyCandidate, PENNY_CANDIDATE_SCHEMA, PENNY_SOURCE_LABEL } from '../penny/pennyHelpSlip';
 import {
   describeHeldHelpCase,
   type CampfirePourPreview,
@@ -82,7 +82,9 @@ export const HelpSlipInbox: React.FC<HelpSlipInboxProps> = ({
       return;
     }
     setError(undefined);
-    setPennyCandidate(isPenny);
+    // Importing the already-normalized fulfillment envelope must not bypass
+    // the same explicit human review as importing a raw PENNY candidate.
+    setPennyCandidate(isPenny || admission.payload.source.system === PENNY_SOURCE_LABEL);
     setPennyReviewed(false);
     setPreviewedRaw(carrier);
   };
