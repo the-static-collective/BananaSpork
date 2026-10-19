@@ -64,7 +64,7 @@ export const HelpSlipDetailModal: React.FC<HelpSlipDetailModalProps> = ({
   };
 
   const handlePour = async () => {
-    if (!preview) return;
+    if (!preview || busy || confirmDiscard) return;
     setBusy(true);
     setNotice(undefined);
     try {
@@ -166,6 +166,7 @@ export const HelpSlipDetailModal: React.FC<HelpSlipDetailModalProps> = ({
               <button
                 type="button"
                 onClick={() => setConfirmDiscard(true)}
+                disabled={busy}
                 className="min-h-[44px] px-3 rounded-xl border border-rose-300 bg-white font-bold"
               >Choose local release</button>
             ) : (
@@ -174,8 +175,9 @@ export const HelpSlipDetailModal: React.FC<HelpSlipDetailModalProps> = ({
                 <div className="flex gap-2 flex-wrap">
                   <button type="button" className="min-h-[44px] px-3 rounded-xl border bg-white"
                     onClick={() => setConfirmDiscard(false)}>Keep held</button>
-                  <button type="button" className="min-h-[44px] px-3 rounded-xl bg-rose-800 text-white font-bold"
+                  <button type="button" disabled={busy} className="min-h-[44px] px-3 rounded-xl bg-rose-800 text-white font-bold disabled:opacity-50"
                     onClick={() => {
+                      if (busy) return;
                       try {
                         onDiscard(heldCase.localCaseId);
                         onClose();
@@ -230,6 +232,7 @@ export const HelpSlipDetailModal: React.FC<HelpSlipDetailModalProps> = ({
               </select>
               <button
                 onClick={handlePreview}
+                disabled={busy || confirmDiscard}
                 className="w-full min-h-[44px] rounded-xl bg-amber-900 text-amber-50 text-xs font-black"
               >
                 Preview Pour
@@ -262,7 +265,7 @@ export const HelpSlipDetailModal: React.FC<HelpSlipDetailModalProps> = ({
                 </button>
                 <button
                   onClick={() => void handlePour()}
-                  disabled={busy}
+                  disabled={busy || confirmDiscard}
                   className="min-h-[44px] rounded-xl bg-emerald-800 text-emerald-50 font-black disabled:opacity-50"
                 >
                   {busy ? 'Sharing…' : 'Pour into this Campfire'}
