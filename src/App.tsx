@@ -176,6 +176,11 @@ export default function App() {
     return result;
   };
 
+  const handleDiscardHelpSlip = (localCaseId: string): void => {
+    helpSlipStore.discardUnsharedHelpCase(localCaseId);
+    reloadHeldHelpCases();
+  };
+
   const handlePourHelpSlip = async (
     heldCase: GardenHeldHelpCase,
     preview: CampfirePourPreview
@@ -825,6 +830,7 @@ export default function App() {
                   sharedState={helpSlipSharedState}
                   onHold={handleHoldHelpSlip}
                   onPour={handlePourHelpSlip}
+                  onDiscard={handleDiscardHelpSlip}
                 />
               </div>
             }
