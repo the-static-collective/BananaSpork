@@ -64,6 +64,32 @@ held demand. A different payload with the same envelope ID is refused as
 `ENVELOPE_ID_CONFLICT`; a reviewer must reconcile changes rather than silently
 fork one source identity into two live requests.
 
+## Integrity before continuity: release is a real local action
+
+A held, unshared Help Slip can now be deliberately **released from this device**:
+Garden asks for a second confirmation and removes that case from its local HOLD store.
+Reopening the application no longer resurrects the discarded case. A fresh import
+is possible, but is a *new explicit choice*, not restoration of a secret shadow
+copy. The original source document or separately transmitted exports may still
+exist; local deletion never claims to recall them.
+
+Once any requirement has acquired a Campfire authority link, local release is
+refused rather than leaving a silently orphaned shared request. Future authorized
+withdrawal must preserve the consequences of already-distributed copies.
+The app also prevents release while a POUR is in flight on this device.
+Neither behavior is a remote cancellation protocol; post-POUR withdrawal
+remains unimplemented.
+
+**Dry-run evidence:** `examples/penny/field-001-candidate.json` is the exact
+fictional practice packet from the offline preparer. The test
+`src/domain/penny/pennyField.test.ts` exercises export compatibility, isolated
+device-local HOLD, duplicate delivery, explicitly mocked authority, report versus
+confirmation, restart reconstruction, identity conflict, and local release.
+Both devices and the shared authority in this test are **simulated**; no live
+privacy isolation, real-person consent, physical delivery, or network hosting
+is claimed. The independent live field gate lives in
+[FIELD-001 issue](https://github.com/the-static-collective/BananaSpork/issues/17).
+
 ## Explicitly excluded
 
 - The separate `penny-field-demo/1` event log **cannot be imported** as a real need. That simulation records fictional role claims and should never auto-promote to a Campfire.
