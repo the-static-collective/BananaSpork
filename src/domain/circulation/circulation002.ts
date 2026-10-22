@@ -233,7 +233,7 @@ export function makeLocalCirculationReply(
     ownerIdentityAuthenticated: false as const,
     fulfillmentConfirmed: false as const,
     humanConsentProven: false as const,
-  };
+  } as const;
   return { id: circulationDigest('BANANASPORK-CIRCULATION-002|', body), ...body };
 }
 
