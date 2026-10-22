@@ -1,0 +1,77 @@
+name: CIRCULATION-002 — first BananaSpork-owned receiver
+on:
+  pull_request:
+    paths:
+      - 'src/domain/circulation/**'
+      - 'src/domain/help-slip/HelpSlipInbox.tsx'
+      - 'package.json'
+      - 'docs/CIRCULATION-002.md'
+      - '.github/workflows/circulation-002.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  real-source-to-local-receiver:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - uses: actions/checkout@v4
+        with:
+          repository: the-static-collective/CANNON
+          ref: 0ff0cf484d5689d8c62a0ec4d8980c55c89725d8
+          path: deps/CANNON
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          repository: the-static-collective/planZ
+          ref: 316000e071e0da5af4762f119f80dfc3add26d7c
+          path: deps/planZ
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          repository: the-static-collective/free-graph
+          ref: ec0ad8743c5faac3f3675760bbafcbcb1df846c1
+          path: deps/free-graph
+          persist-credentials: false
+      - name: Generate actual native Free Graph and planZ source without re-writing owners
+        shell: bash
+        run: |
+          mkdir -p .circulation-proof
+          python deps/CANNON/labs/circulation-001/cannon_seed.py run --seed deps/CANNON/labs/circulation-001/seed.json --free-graph-core deps/free-graph/scripts/fg_core.py --output .circulation-proof/native-graph.json
+          python deps/free-graph/scripts/fg.py validate .circulation-proof/native-graph.json
+          python deps/planZ/scripts/circulation001_planz.py run --graph .circulation-proof/native-graph.json --replies deps/CANNON/labs/circulation-001/replies.json --free-graph-core deps/free-graph/scripts/fg_core.py --output .circulation-proof/native-planz.json
+          python deps/planZ/scripts/circulation001_planz.py verify --graph .circulation-proof/native-graph.json --replies deps/CANNON/labs/circulation-001/replies.json --free-graph-core deps/free-graph/scripts/fg_core.py --output .circulation-proof/native-planz.json
+          python - <<'PY'
+          from pathlib import Path
+          import json
+          directory=Path('.circulation-proof')
+          graph=json.loads((directory/'native-graph.json').read_text())
+          result=json.loads((directory/'native-planz.json').read_text())
+          assert result['graph_packet_id']==graph['packet_id']
+          bundle={'schema':'banana-spork.circulation-input/v0','source_graph':graph,
+                  'offer_set':result['offer_set']}
+          (directory/'native-recipient-input.json').write_text(json.dumps(bundle,indent=2)+'\n')
+          print(json.dumps({'free_graph_packet_id':graph['packet_id'],
+                             'planZ_offer_set':result['offer_set']['id'],
+                             'addresses':[x['destination'] for x in result['offer_set']['offers']],
+                             'simulated_planZ_return_excluded':True}))
+          PY
+      - name: Native BananaSpork receiver consumes real source output and adversarial fixtures
+        env:
+          CIRCULATION_INPUT_FIXTURE: .circulation-proof/native-recipient-input.json
+        run: node --import tsx src/domain/circulation/circulation002.test.ts
+      - name: Existing receiver regression suite
+        run: npm test
+      - name: Type checking
+        run: npm run lint
+      - name: Client/server compilation
+        run: npm run build
+      - name: Ensure no generated field or partner data is committed
+        run: |
+          test -f .circulation-proof/native-recipient-input.json
+          git diff --exit-code -- package.json src/domain/help-slip/HelpSlipInbox.tsx
