@@ -10,6 +10,7 @@ import {
 import type { GardenHeldHelpCase } from './types';
 import type { HelpSlipHoldResult } from './holdStore';
 import { HelpSlipDetailModal } from './HelpSlipDetailModal';
+import { CirculationReviewBench } from '../circulation/CirculationReviewBench';
 
 interface HelpSlipInboxProps {
   heldCases: GardenHeldHelpCase[];
@@ -257,6 +258,8 @@ export const HelpSlipInbox: React.FC<HelpSlipInboxProps> = ({
           })}
         </div>
       )}
+
+      <CirculationReviewBench />
 
       {selectedCase && (
         <HelpSlipDetailModal
