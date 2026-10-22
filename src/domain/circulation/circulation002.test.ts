@@ -8,7 +8,7 @@ import {
 import { admitHelpSlipCarrier } from '../help-slip/envelope';
 
 const putId = (prefix: string, record: Record<string, unknown>) => ({
-  ...record, id: prefix + circulationDigest('', record).slice(7),
+  ...record, id: prefix + circulationDigest('', record),
 });
 function fixture() {
   const src = putId('fgs:', {
@@ -48,7 +48,7 @@ function fixture() {
     sources: [src], nodes, links, residual_fog: [], non_imports: [],
     extensions: { origin: 'cannon.circulation001', synthetic_only: true, circulation_fixture: true },
   };
-  const graphWithId = { ...graph, packet_id: 'fgp:' + circulationDigest('', graph).slice(7) };
+  const graphWithId = { ...graph, packet_id: 'fgp:' + circulationDigest('', graph) };
   const offers = inviteNodes.map(({ invite, destination, lane, question }) => {
     const o = {
       destination, lane, graph_invitation_node: invite.id, seed_node: seed.id, question,
