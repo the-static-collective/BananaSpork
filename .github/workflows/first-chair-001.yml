@@ -1,0 +1,31 @@
+name: FIRST CHAIR 001 — Self-Declaration and Open Review
+on:
+  push:
+    branches:
+      - feat/first-chair-001
+  pull_request:
+    paths:
+      - 'campfire-backend/stewardship/**'
+      - 'package.json'
+      - '.github/workflows/first-chair-001.yml'
+permissions:
+  contents: read
+jobs:
+  inspect-first-chair:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.13.1'
+          cache: npm
+      - run: npm ci
+      - name: Inspect versioned public declaration and receipt
+        run: node campfire-backend/stewardship/check-first-chair.mjs
+      - name: No self-certification / unoccupied second chair tests
+        run: node --test campfire-backend/stewardship/chair-contract.test.mjs
+      - name: Full regression checks
+        run: |
+          npm run lint
+          npm test
+          npm run build
