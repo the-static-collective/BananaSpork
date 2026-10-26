@@ -82,3 +82,13 @@ test('a private member report survives two independently authenticated reviewer-
   assert.equal((await x.call('GET','/v1/admin/audit',undefined,admin)).audit.ok,true);
  }finally{await x.close();}
 });
+
+test('member process page has valid inline JavaScript and categorical inputs',()=>{
+ const html=readFileSync(new URL('./watch.html',import.meta.url),'utf8');
+ const script=html.split('<script>')[1]?.split('</script>')[0];
+ assert.ok(script);
+ assert.doesNotThrow(()=>new Script(script));
+ assert.match(html,/id="category"/);
+ assert.match(html,/id="preview"/);
+ assert.doesNotMatch(html,/textarea/i);
+});
