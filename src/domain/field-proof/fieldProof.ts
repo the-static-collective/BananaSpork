@@ -54,7 +54,7 @@ export interface LocalFieldTrial {
 
 export interface FieldReview {
   schema: typeof REPORT_SCHEMA;
-  standing: 'NOT_STARTED' | 'INCOMPLETE' | 'BLOCKED' | 'OPERATOR_REPORTED_READY_FOR_REVIEW';
+  standing: 'NOT_STARTED' | 'INCOMPLETE' | 'BLOCKED' | 'SYNTHETIC_EXERCISE' | 'OPERATOR_REPORTED_READY_FOR_REVIEW';
   targetProjectRef: string;
   missing: FieldCheck[];
   failures: string[];
@@ -132,6 +132,7 @@ export function assessFieldTrial(input: LocalFieldTrial): FieldReview {
   // Deliberately never classify occurrence refs as verified evidence.
   const standing: FieldReview['standing'] =
     failed.length ? 'BLOCKED' :
+    input.synthetic ? 'SYNTHETIC_EXERCISE' :
     observed === 0 ? 'NOT_STARTED' :
     missing.length || !input.operatorReviewed ? 'INCOMPLETE' :
     'OPERATOR_REPORTED_READY_FOR_REVIEW';
