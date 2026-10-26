@@ -158,6 +158,13 @@ export function createCampfireBackend({dbPath,bootstrapKey,allowOrigin=null}={})
      'Content-Security-Policy':"default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; connect-src 'self'; base-uri 'none'; frame-ancestors 'none'"});
     return res.end(html);
    }
+   if(path==='/watch'&&req.method==='GET'){
+    const html=readFileSync(new URL('./watch.html',import.meta.url),'utf8');
+    res.writeHead(200,{'Content-Type':'text/html; charset=utf-8','Cache-Control':'no-store',
+      'Referrer-Policy':'no-referrer','X-Content-Type-Options':'nosniff','X-Frame-Options':'DENY',
+      'Content-Security-Policy':"default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; connect-src 'self'; base-uri 'none'; frame-ancestors 'none'"});
+    return res.end(html);
+   }
    if(path==='/'&&req.method==='GET'){
     const html=readFileSync(new URL('./index.html',import.meta.url),'utf8');
     res.writeHead(200,{'Content-Type':'text/html; charset=utf-8','Cache-Control':'no-store',
