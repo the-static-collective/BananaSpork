@@ -1,0 +1,89 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Campfire · A Place to Do Something Together</title>
+<style>:root{color-scheme:light;--forest:#193c30;--gold:#f1da91;--paper:#fcf8ee;--line:#bdc9b9}*{box-sizing:border-box}body{background:var(--paper);margin:0;color:#223329;font:16px/1.5 system-ui, sans-serif}header{background:var(--forest);color:white;padding:22px 0 40px}main,header>div,footer>div{width:min(840px,calc(100% - 30px));margin:auto}h1,h2{font-family:Georgia,serif;letter-spacing:-.03em}h1{font-size:clamp(2.5rem,8vw,4.9rem);margin:25px 0 10px}h2{font-size:2rem}section{border:1px solid var(--line);background:white;padding:20px;margin:18px 0}label{display:block;font-weight:700;margin:13px 0 5px}input,textarea,button{font:inherit}input,textarea{width:100%;padding:11px;border:1px solid #93a79b;border-radius:4px}textarea{min-height:80px}button{background:var(--forest);color:white;border:0;border-radius:4px;padding:11px 15px;cursor:pointer;margin:10px 7px 0 0;font-weight:700}button[disabled]{opacity:.5;cursor:not-allowed}.alt{background:#e3eedf;color:var(--forest)}.hint{color:#53645b;font-size:.85rem}.warn{background:#fff2cb;padding:12px;border-left:5px solid #ad682c}.hide{display:none}.row{display:flex;gap:12px;flex-wrap:wrap}.row>*{flex:1;min-width:170px}article{border:1px solid var(--line);padding:12px;margin:9px 0;overflow-wrap:anywhere}small{font-size:.8rem;color:#506052}output{display:block;margin:12px 0;padding:12px;background:#e8efea;overflow-wrap:anywhere;white-space:pre-wrap}footer{padding:25px 0;background:var(--forest);color:white;margin-top:40px}a{color:inherit}input:focus-visible,button:focus-visible,textarea:focus-visible{outline:3px solid #a64b4b;outline-offset:2px}</style></head>
+<body><header><div><div style="font-weight:850;letter-spacing:.1em">THE STATIC COLLECTIVE · CAMPFIRE</div><h1>A small fire.<br>A real place.</h1><p>Talk with people you trust. Offer help if you want. Remember exactly what was reported and what the owner actually accepted.</p></div></header>
+<main><p class="warn"><b>Invite-only technical pilot.</b> A Campfire credential is a private key, not verified identity. Do not enter children’s information, addresses, custody details, private survivor stories or real vulnerable household data. This service does not verify physical delivery.</p>
+<section id="login"><h2>Enter your Campfire</h2><p>Use a one-time invitation shared privately by the organizer, or restore your own previously saved access token.</p>
+<label for="invite">One-time invitation code</label><input id="invite" type="password" autocomplete="off" placeholder="Paste invitation code"><button id="join">Accept invitation</button>
+<label for="restore">Existing private access token</label><input id="restore" type="password" autocomplete="off" placeholder="Paste your saved access token"><button id="open">Open my Campfire</button>
+<output id="loginStatus" role="status">No account connected.</output></section>
+<section id="inside" class="hide"><h2 id="welcome">Welcome to the fire</h2><p class="hint">This device uses a session-only credential. Save your own token privately if you want to come back after closing this tab. Never send it to another person.</p>
+<button id="showToken" class="alt">Show my one-time access token</button><button id="leave" class="alt">Leave this device</button><output id="tokenOutput" role="status" class="hide"></output>
+<div class="row"><div><h2>Porch · Conversation</h2><p>Ordinary messages are not Jubilee witness events.</p><div id="messages" aria-live="polite"></div>
+<label for="message">Say something to your Campfire</label><textarea id="message" maxlength="2000"></textarea><button id="send">Post to Campfire</button><button id="refresh" class="alt">Refresh</button></div>
+<div><h2>Basket · Needs</h2><div id="needs" aria-live="polite"></div>
+<div id="ownerForm" class="hide"><label for="needDesc">A small test need</label><input id="needDesc" maxlength="500" placeholder="For example: 12 sample cartons"><div class="row"><div><label for="needUnits">Units</label><input id="needUnits" type="number" min="1" step="1" value="12"></div><div><label for="needUnit">Unit label</label><input id="needUnit" value="cartons" maxlength="40"></div></div><button id="createNeed">Open a test need</button></div>
+<p class="hint">A member may report help. Only the credential that created the need may accept some or all of a report. No person is automatically enrolled or assigned work.</p></div></div>
+<output id="status" role="status">Ready.</output>
+</section>
+</main><footer><div>Campfire 001 · self-hosted SQLite backend · No AI inference, advertiser, managed database, auto-publish or verification of physical provision.</div></footer>
+<script>
+const $=id=>document.getElementById(id);
+let token=sessionStorage.getItem('campfire-token')||'';
+let me=null;
+const safe=t=>{const p=document.createElement('p');p.textContent=String(t);return p};
+const note=(id,msg)=>{$(id).textContent=msg};
+async function api(path,method='GET',data=null,accessToken=token){
+ const headers={'Authorization':'Bearer '+accessToken};
+ if(data!==null)headers['Content-Type']='application/json';
+ const r=await fetch(path,{method,headers,body:data===null?null:JSON.stringify(data),cache:'no-store'});
+ const j=await r.json();if(!r.ok||!j.ok)throw Error(j.error||'REQUEST_FAILED');return j;
+}
+const uid=()=>crypto.randomUUID();
+function setToken(t){token=t;sessionStorage.setItem('campfire-token',t);$('tokenOutput').classList.add('hide')}
+async function login(){
+ try{
+  const x=await api('/v1/me');me=x;
+  $('inside').classList.remove('hide');$('login').classList.add('hide');
+  $('welcome').textContent='Your Campfire · '+me.role;
+  $('ownerForm').classList.toggle('hide',me.role!=='owner');
+  await refresh();
+ }catch(e){token='';sessionStorage.removeItem('campfire-token');note('loginStatus',e.message);$('inside').classList.add('hide');$('login').classList.remove('hide');}
+}
+async function refresh(){
+ if(!me)return;
+ try{
+  const [msgs,needs]=await Promise.all([
+   api('/v1/circles/'+me.circleId+'/messages'),
+   api('/v1/circles/'+me.circleId+'/needs')]);
+  $('messages').replaceChildren();
+  msgs.messages.forEach(m=>{const article=document.createElement('article');article.append(safe(m.body));
+   const by=document.createElement('small');by.textContent=(m.sender_user_id===me.actorId?'You':'Other member')+' · '+m.created_at;
+   article.append(by);$('messages').append(article)});
+  $('needs').replaceChildren();
+  needs.needs.forEach(n=>{
+   const box=document.createElement('article'),title=document.createElement('b');
+   title.textContent=n.description+' · '+n.confirmed+'/'+n.requested+' '+n.unit+' accepted';box.append(title);
+   const hint=safe('Remaining: '+n.residual+' · This is credential-based acceptance, not proof of physical delivery.');
+   box.append(hint);
+   if(n.ownerId!==me.actorId && n.residual>0){
+    const label=safe('Report quantity (not verified)');box.append(label);
+    const qty=document.createElement('input');qty.type='number';qty.min='1';qty.step='1';qty.value='1';box.append(qty);
+    const btn=document.createElement('button');btn.textContent='Report that I helped';
+    btn.onclick=async()=>{try{const r=await api('/v1/needs/'+n.id+'/reports','POST',{units:Number(qty.value),requestId:uid()});
+      note('status','Report submitted. It has NOT been confirmed. Report ID: '+r.report.id);}catch(e){note('status',e.message)}};box.append(btn);
+   }
+   if(n.ownerId===me.actorId){
+    const input=document.createElement('input');input.placeholder='Paste helper report ID';box.append(input);
+    const units=document.createElement('input');units.type='number';units.min='1';units.step='1';units.value='1';box.append(units);
+    const btn=document.createElement('button');btn.textContent='Accept some reported units';
+    btn.onclick=async()=>{try{await api('/v1/reports/'+input.value+'/confirm','POST',{units:Number(units.value),requestId:uid()});note('status','Owner capability accepted a quantity. This does not verify physical delivery.');await refresh()}catch(e){note('status',e.message)}};box.append(btn);
+   }
+   $('needs').append(box);
+  });
+ }catch(e){note('status',e.message)}
+}
+$('join').onclick=async()=>{
+ try{const x=await api('/v1/join','POST',{inviteCode:$('invite').value.trim()},'');
+ setToken(x.accessToken);$('invite').value='';await login();
+ note('status','Joined as a capability member. Save your private access token before closing the browser.');}
+ catch(e){note('loginStatus',e.message)}
+};
+$('open').onclick=()=>{setToken($('restore').value.trim());$('restore').value='';login()};
+$('send').onclick=async()=>{try{await api('/v1/circles/'+me.circleId+'/messages','POST',{body:$('message').value});$('message').value='';await refresh()}catch(e){note('status',e.message)}};
+$('createNeed').onclick=async()=>{try{await api('/v1/circles/'+me.circleId+'/needs','POST',{
+ description:$('needDesc').value,units:Number($('needUnits').value),unit:$('needUnit').value});$('needDesc').value='';await refresh()}catch(e){note('status',e.message)}};
+$('refresh').onclick=refresh;
+$('leave').onclick=()=>{sessionStorage.removeItem('campfire-token');token='';me=null;location.reload()};
+$('showToken').onclick=()=>{$('tokenOutput').textContent='SAVE PRIVATELY · '+token;$('tokenOutput').classList.remove('hide')};
+if(token)login();
+</script></body></html>
