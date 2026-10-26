@@ -118,7 +118,8 @@ export function createCampfireBackend({dbPath,bootstrapKey,allowOrigin=null}={})
   try{
    rate(req);
    const origin=req.headers.origin;
-   if(origin&&(!allowOrigin||origin!==allowOrigin))error('ORIGIN_NOT_ALLOWED',403);
+   const sameOrigin=origin===('http://'+req.headers.host)||origin===('https://'+req.headers.host);
+   if(origin&&!sameOrigin&&(!allowOrigin||origin!==allowOrigin))error('ORIGIN_NOT_ALLOWED',403);
    if(origin&&origin===allowOrigin){
     res.setHeader('Access-Control-Allow-Origin',allowOrigin);
     res.setHeader('Vary','Origin');
