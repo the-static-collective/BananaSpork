@@ -80,8 +80,15 @@ test('durable restart: message persists; report does NOT reduce residual; only o
   assert.equal(inbox.reports[0].outstandingUnits,9);
   assert.equal((await x.call('GET','/v1/needs/'+nid+'/reports',null,helper.accessToken)).status,403);
   assert.equal((await x.call('POST','/v1/reports/'+reportId+'/confirm',{units:6,requestId:randomUUID()},helper.accessToken)).status,403);
+  const beforeRestart=await x.call('POST','/v1/circles/'+circle+'/messages',
+   {body:'This message must survive service restart'},helper.accessToken);
+  assert.equal(beforeRestart.status,201);
   await x.stop();
   x=await launch(path);
+  const rehydrated=await x.call('GET','/v1/circles/'+circle+'/messages',null,owner.accessToken);
+  assert.equal(rehydrated.status,200);
+  assert.equal(rehydrated.messages.length,1);
+  assert.equal(rehydrated.messages[0].body,'This message must survive service restart');
   const messages=await x.call('POST','/v1/circles/'+circle+'/messages',{body:'After restart'},owner.accessToken);
   assert.equal(messages.status,201);
   const confirmKey=randomUUID();
