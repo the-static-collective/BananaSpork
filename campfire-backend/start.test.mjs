@@ -74,6 +74,15 @@ test('one-command startup creates local key & SQLite and reuses them after resta
   assert.match(next.stdout,/Give this room a willing keeper|Make the first tiny room/);
   assert.match(next.stdout,/NOTHING EXECUTED/);
   assert.doesNotMatch(next.stdout,new RegExp(key));
+  const rooms=spawnSync(process.execPath,['campfire-backend/manage.mjs','rooms'],{
+   cwd:process.cwd(),encoding:'utf8',timeout:5000,
+   env:{...process.env,CAMPFIRE_DATA_DIR:dir,CAMPFIRE_BASE_URL:base,CAMPFIRE_BOOTSTRAP_KEY:''}
+  });
+  assert.equal(rooms.status,0,rooms.stderr);
+  assert.match(rooms.stdout,/PRIVATE ROOM DIRECTORY/);
+  assert.ok(rooms.stdout.includes(result.circle.id));
+  assert.doesNotMatch(rooms.stdout,new RegExp(key));
+
 
 
   await stop(child);
