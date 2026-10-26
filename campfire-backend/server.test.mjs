@@ -60,6 +60,18 @@ test('3 separate member credentials: no anonymous access, no nonmember read/writ
   assert.equal(dance.replication,'NONE');
   assert.equal(dance.automation,'NO_AUTO_INVITATIONS_OR_SHARED_RECORDS');
   assert.equal(JSON.stringify(dance).includes(owner.accessToken),false);
+  // A non-operator cannot read the Attention Desk or see what questions might exist.
+  assert.equal((await x.call('GET','/v1/admin/attention')).status,403);
+  assert.equal((await x.call('GET','/v1/admin/attention',null,helper.accessToken)).status,403);
+  const desk=await x.call('GET','/v1/admin/attention',null,admin);
+  assert.equal(desk.status,200);
+  assert.equal(desk.schema,'campfire.operator-attention/v0');
+  assert.equal(desk.next24Hours.code,'TEST_ONE_NEED');
+  assert.equal(desk.next24Hours.canExecute,false);
+  assert.equal(desk.authority.personAssigned,false);
+  assert.equal(desk.authority.knowledgePublished,false);
+  assert.equal(JSON.stringify(desk).includes('Hi from A'),false);
+  assert.equal(JSON.stringify(desk).includes(owner.accessToken),false);
   const privateStatus=await x.call('GET','/v1/admin/status',null,admin);
   assert.equal(privateStatus.status,200);
   assert.equal(privateStatus.counts.circles,2);
@@ -98,6 +110,11 @@ test('durable restart: message persists; report does NOT reduce residual; only o
   const reported=await x.call('POST','/v1/needs/'+nid+'/reports',{units:9,requestId:reportKey},helper.accessToken);
   assert.equal(reported.status,201);
   assert.equal(reported.standing,'REPORTED_NOT_CONFIRMED');
+  const pendingDesk=await x.call('GET','/v1/admin/attention',null,admin);
+  assert.equal(pendingDesk.status,200);
+  assert.equal(pendingDesk.next24Hours.code,'REVIEW_REPORTED_HELP');
+  assert.equal(pendingDesk.authority.provisionVerified,false);
+
   assert.equal((await x.call('GET',needEndpoint,null,owner.accessToken)).needs[0].residual,12);
   assert.equal((await x.call('POST','/v1/needs/'+nid+'/reports',{units:9,requestId:reportKey},helper.accessToken)).report.duplicate,true);
   const reportId=reported.report.id;
@@ -123,6 +140,10 @@ test('durable restart: message persists; report does NOT reduce residual; only o
   const accepted=await x.call('POST','/v1/reports/'+reportId+'/confirm',{units:6,requestId:confirmKey},owner.accessToken);
   assert.equal(accepted.status,201);
   assert.equal(accepted.need.residual,6);
+  const returnedDesk=await x.call('GET','/v1/admin/attention',null,admin);
+  assert.equal(returnedDesk.next24Hours.code,'REVIEW_REPORTED_HELP');
+  assert.ok(returnedDesk.otherOptions.some(x=>x.code==='HUMAN_WITNESS_GAP'));
+
   const after=await x.call('GET','/v1/needs/'+nid+'/reports',null,owner.accessToken);
   assert.equal(after.reports[0].acceptedUnits,6);
   assert.equal(after.reports[0].outstandingUnits,3);
