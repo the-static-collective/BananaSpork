@@ -9,22 +9,22 @@ export async function run(args){
   const flags={};
   for(let i=0;i<args.length;i+=2){
     const key=args[i],value=args[i+1];
-    if(!['--kind','--availability','--intent','--output-directory'].includes(key)||
+    if(!['--kind','--availability','--intent','--adult-affirmation','--output-directory'].includes(key)||
        typeof value!=='string'||value.startsWith('--')||Object.hasOwn(flags,key)){
-      throw Error('USAGE: --kind <category> --availability <one_off|occasional|unsure> --intent I_OFFER_FREELY --output-directory <new-private-folder>');
+      throw Error('USAGE: --kind <category> --availability <one_off|occasional|unsure> --intent I_OFFER_FREELY --adult-affirmation I_AM_AN_ADULT --output-directory <new-private-folder>');
     }
     flags[key]=value;
   }
-  if(args.length!==8 || Object.keys(flags).length!==4)throw Error('FOUR_EXPLICIT_FLAGS_REQUIRED');
+  if(args.length!==10 || Object.keys(flags).length!==5)throw Error('FOUR_EXPLICIT_FLAGS_REQUIRED');
   const packet=prepareInheritanceSeed({
-    purpose:'INDEPENDENT_NEW_OFFER',intent:flags['--intent'],adultSelfAttested:true,
+    purpose:'INDEPENDENT_NEW_OFFER',intent:flags['--intent'],adultSelfAttested:flags['--adult-affirmation']==='I_AM_AN_ADULT',
     kind:flags['--kind'],availability:flags['--availability']
   });
   if(packet.state!=='HOLD_FOR_PRIVATE_REVIEW')throw Error('SEED_REFUSED_'+packet.reason);
   const directory=resolve(flags['--output-directory']);
   if(directory===process.cwd())throw Error('EXPLICIT_NEW_FOLDER_REQUIRED');
   // Exclusive mkdir: refuse overwrite and prevent silent expansion of existing data.
-  await mkdir(directory);
+  await mkdir(directory,{mode:0o700});
   await writeFile(resolve(directory,'review.json'),JSON.stringify(packet,null,2)+'\n',{flag:'wx',mode:0o600});
   await writeFile(resolve(directory,'review.html'),renderPrivateReviewCard(packet),{flag:'wx',mode:0o600});
   return {state:packet.state,privateDirectory:directory,files:['review.json','review.html']};
