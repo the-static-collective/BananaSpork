@@ -1,0 +1,19 @@
+{
+  "schema": "campfire.founding-chair-receipt/v0",
+  "eventId": "CHAIR-001-2026-10-26",
+  "statementDigest": "sha256:619aea9c587be9a0ce4ba4b2672a86c14f2bba9483e57285c31cb8cbc8ef8c0d",
+  "basis": "GITHUB_VERSIONED_SELF_DECLARATION",
+  "humanAuthorization": "SELF_REPORTED_FROM_EXPLICIT_USER_APPROVAL",
+  "provenance": "PUBLIC_GIT_COMMIT_AND_THIS_DETERMINISTIC_DIGEST_ONLY",
+  "roleStanding": "FIRST_VOLUNTARY_STEWARD_SELF_ASSUMED",
+  "independentHumanIdentityVerified": false,
+  "independentReviewerAssigned": false,
+  "independentReviewCompleted": false,
+  "secondChairAssigned": false,
+  "legalAuthorityGranted": false,
+  "operatorCredentialsIssued": false,
+  "fieldServiceDeployed": false,
+  "downstreamEffects": 0,
+  "trustClaim": "HASH_IS_CONTENT_INTEGRITY_NOT_A_HUMAN_SIGNATURE_OR_INDEPENDENT_WITNESS",
+  "nextHumanStep": "Seek a separate willing adult for CHAIR-002; verify identity and independence without transferring private records."
+}
