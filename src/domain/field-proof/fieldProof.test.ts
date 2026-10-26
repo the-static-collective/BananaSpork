@@ -30,7 +30,7 @@ function fixture(): LocalFieldTrial {
 
 test('even complete operator assertions never become verified world evidence', () => {
   const review = assessFieldTrial(fixture());
-  assert.equal(review.standing, 'OPERATOR_REPORTED_READY_FOR_REVIEW');
+  assert.equal(review.standing, 'SYNTHETIC_EXERCISE');
   assert.equal(review.observedSteps, FIELD_CHECKS.length);
   assert.equal(review.independentlyVerified, false);
   assert.equal(review.physicalProvisionVerified, false);
@@ -41,14 +41,17 @@ test('even complete operator assertions never become verified world evidence', (
 
 test('unrun or unreviewed field checks cannot be promoted', () => {
   const a = fixture();
+  a.synthetic = false;
   a.checks.nonmember_select_refused = 'not-run';
   const result = assessFieldTrial(a);
   assert.equal(result.standing, 'INCOMPLETE');
   assert.deepEqual(result.missing, ['nonmember_select_refused']);
   const b = fixture();
+  b.synthetic = false;
   b.operatorReviewed = false;
   assert.equal(assessFieldTrial(b).standing, 'INCOMPLETE');
   const c = fixture();
+  c.synthetic = false;
   for (const key of FIELD_CHECKS) c.checks[key] = 'not-run';
   assert.equal(assessFieldTrial(c).standing, 'NOT_STARTED');
 });
@@ -117,4 +120,13 @@ test('refuse invented field check names, invalid roles, project-less records or 
   const d = fixture();
   (d.checks as Record<string, string>).member_a_sent = 'auto-verified';
   assert.throws(() => assessFieldTrial(d), /INVALID_CHECK_STATE/);
+});
+
+test('even complete real-world assertions remain operator-reported pending independent review', () => {
+  const a = fixture();
+  a.synthetic = false;
+  const result = assessFieldTrial(a);
+  assert.equal(result.standing, 'OPERATOR_REPORTED_READY_FOR_REVIEW');
+  assert.equal(result.sourceOwnerAccepted, false);
+  assert.equal(result.physicalProvisionVerified, false);
 });
