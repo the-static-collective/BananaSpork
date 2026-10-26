@@ -12,7 +12,7 @@ The inheritance interrupt is a way of passing forward *capacity to help*, never 
 
 ```bash
 node --test campfire-backend/inheritance.test.mjs
-node campfire-backend/seed-card.mjs --kind garden_work --availability one_off --intent I_OFFER_FREELY --output-directory ./private-seed-001
+node campfire-backend/seed-card.mjs --kind garden_work --availability one_off --intent I_OFFER_FREELY --adult-affirmation I_AM_AN_ADULT --output-directory ./private-seed-001
 ```
 
 Do not commit or publicly serve `private-seed-001`. Operator must make a separate privacy decision about storing local packets. The caller's `adultSelfAttested` assertion is **not** age or identity verification; verify independently before a real-world field use. The CLI presently accepts that operator assertion and is not a direct public self-service enrollment tool.
