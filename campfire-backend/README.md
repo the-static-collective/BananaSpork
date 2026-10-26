@@ -4,6 +4,14 @@
 
 **Status:** source and offline HTTP integration tests. A public production URL, durable always-on hosting, and real independent human field receipts require the user's machine or an explicitly configured persistent host. Do not confuse a GitHub PR or the Garden's separate public Pocket UI with this service already running.
 
+## Start with the human view, not infrastructure jargon
+
+After the one-command startup, open **http://127.0.0.1:3417/how**. It explains the four actual parts of the backend—Firebox, Logbook, Keys and Door—and shows whether the currently contacted server is awake. No operator secret is given to the browser.
+
+On the host, run **node campfire-backend/manage.mjs status** to see a plain-language, administrator-only health dashboard: circles, active keys, messages, needs, reports, owner acceptances and audit status. Backup verification, human identity and physical fulfillment are intentionally labelled **NOT VERIFIED**.
+
+The opt-in public-safe [WAGGLE-001.md](WAGGLE-001.md) describes the node's read-only capability signal at /.well-known/campfire-waggle.json, and explains why code can roam on Modal while private SQLite should remain with one stable authority. The signal exposes no private circle inventory or conversations.
+
 ## One command. No new accounts or backend provider.
 
 From the NanaSpork repository directory on a computer with Node 22.13+:
@@ -113,6 +121,9 @@ These are **programmatic token isolation tests**, not evidence of three real hum
 | Method | Path | Auth | Outcome |
 | --- | --- | --- | --- |
 | GET | `/health` | None | no private records |
+| GET | `/how` | None | nontechnical tour and public pulse, no admin info |
+| GET | `/.well-known/campfire-waggle.json` | None | protocol capabilities only, no private data |
+| GET | `/v1/admin/status` | Admin | private counts, audit check, explicit trust limits |
 | POST | `/v1/admin/circles` | 32+-character admin key | creates private circle |
 | POST | `/v1/admin/circles/:id/invites` | Admin | returns one-use owner/member invitation, expires in 24h |
 | POST | `/v1/join` | One-use invite body | returns private member bearer capability |
