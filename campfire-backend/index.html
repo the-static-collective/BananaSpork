@@ -9,7 +9,7 @@
 <section id="inside" class="hide"><h2 id="welcome">Welcome to the fire</h2><p class="hint">This device uses a session-only credential. Save your own token privately if you want to come back after closing this tab. Never send it to another person.</p>
 <button id="showToken" class="alt">Show my one-time access token</button><button id="leave" class="alt">Leave this device</button><output id="tokenOutput" role="status" class="hide"></output>
 <div class="row"><div><h2>Porch · Conversation</h2><p>Ordinary messages are not Jubilee witness events.</p><div id="messages" aria-live="polite"></div>
-<label for="message">Say something to your Campfire</label><textarea id="message" maxlength="2000"></textarea><button id="send">Post to Campfire</button><button id="refresh" class="alt">Refresh</button></div>
+<label for="message">Say something to your Campfire</label><textarea id="message" maxlength="4000"></textarea><button id="send">Post to Campfire</button><button id="refresh" class="alt">Refresh</button></div>
 <div><h2>Basket · Needs</h2><div id="needs" aria-live="polite"></div>
 <div id="ownerForm" class="hide"><label for="needDesc">A small test need</label><input id="needDesc" maxlength="500" placeholder="For example: 12 sample cartons"><div class="row"><div><label for="needUnits">Units</label><input id="needUnits" type="number" min="1" step="1" value="12"></div><div><label for="needUnit">Unit label</label><input id="needUnit" value="cartons" maxlength="40"></div></div><button id="createNeed">Open a test need</button></div>
 <p class="hint">A member may report help. Only the credential that created the need may accept some or all of a report. No person is automatically enrolled or assigned work.</p></div></div>
@@ -50,7 +50,7 @@ async function refresh(){
    const by=document.createElement('small');by.textContent=(m.sender_user_id===me.actorId?'You':'Other member')+' · '+m.created_at;
    article.append(by);$('messages').append(article)});
   $('needs').replaceChildren();
-  needs.needs.forEach(n=>{
+  for(const n of needs.needs){
    const box=document.createElement('article'),title=document.createElement('b');
    title.textContent=n.description+' · '+n.confirmed+'/'+n.requested+' '+n.unit+' accepted';box.append(title);
    const hint=safe('Remaining: '+n.residual+' · This is credential-based acceptance, not proof of physical delivery.');
@@ -63,13 +63,30 @@ async function refresh(){
       note('status','Report submitted. It has NOT been confirmed. Report ID: '+r.report.id);}catch(e){note('status',e.message)}};box.append(btn);
    }
    if(n.ownerId===me.actorId){
-    const input=document.createElement('input');input.placeholder='Paste helper report ID';box.append(input);
-    const units=document.createElement('input');units.type='number';units.min='1';units.step='1';units.value='1';box.append(units);
-    const btn=document.createElement('button');btn.textContent='Accept some reported units';
-    btn.onclick=async()=>{try{await api('/v1/reports/'+input.value+'/confirm','POST',{units:Number(units.value),requestId:uid()});note('status','Owner capability accepted a quantity. This does not verify physical delivery.');await refresh()}catch(e){note('status',e.message)}};box.append(btn);
+    const reports=await api('/v1/needs/'+n.id+'/reports');
+    for(const report of reports.reports){
+     if(report.outstandingUnits===0)continue;
+     const info=document.createElement('p');
+     info.textContent='Member reported '+report.reportedUnits+' '+n.unit+
+      ' · '+report.acceptedUnits+' accepted so far · no physical proof';
+     box.append(info);
+     const qty=document.createElement('input');
+     qty.type='number';qty.step='1';qty.min='1';
+     qty.max=String(Math.min(report.outstandingUnits,n.residual));
+     qty.value=String(Math.min(report.outstandingUnits,n.residual));
+     box.append(qty);
+     const btn=document.createElement('button');btn.textContent='Accept a reported quantity';
+     btn.disabled=n.residual<=0;
+     btn.onclick=async()=>{try{
+       await api('/v1/reports/'+report.id+'/confirm','POST',{units:Number(qty.value),requestId:uid()});
+       note('status','Separate owner capability accepted part of a report. It is NOT proof of a physical delivery.');
+       await refresh();
+     }catch(e){note('status',e.message)}};
+     box.append(btn);
+    }
    }
    $('needs').append(box);
-  });
+  }
  }catch(e){note('status',e.message)}
 }
 $('join').onclick=async()=>{
