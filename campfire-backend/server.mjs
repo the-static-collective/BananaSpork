@@ -357,6 +357,21 @@ export function createCampfireBackend({dbPath,bootstrapKey,allowOrigin=null}={})
     });
     return send(res,201,{ok:true,...invite,warning:'PRIVATE_ONE_USE_CODE. SHARE ONLY WITH AN INDEPENDENT WILLING ADULT MEMBER. NO HUMAN INDEPENDENCE VERIFIED.'});
    }
+   if(path==='/v1/watch/preview'&&req.method==='POST'){
+    const a=actor(req),b=await body(req);
+    if(Object.keys(b).length!==1||typeof b.inviteCode!=='string')
+      error('INVALID_REVIEW_PREVIEW');
+    const invite=db.prepare('SELECT * FROM watch_invites WHERE token_hash=?').get(sha(b.inviteCode));
+    if(!invite||invite.used_at||invite.expires_at<Date.now())
+      error('REVIEW_INVITE_INVALID_OR_USED',403);
+    const sig=db.prepare('SELECT * FROM watch_signals WHERE id=?').get(invite.signal_id);
+    if(!sig||sig.circle_id!==a.circle_id||sig.reporter_id===a.id||a.role!=='member')
+      error('REVIEW_SCOPE_DENIED',403);
+    return send(res,200,{ok:true,category:sig.category,subjectScope:sig.subject_scope,
+      availableStances:['ACKNOWLEDGED_FOR_ESCALATION','INDEPENDENT_REVIEW_NEEDED'],
+      standing:'CATEGORICAL_REQUEST_ONLY_NOT_EVIDENCE',
+      independentHumanVerification:false,noFindingOfFault:true,noAutomaticAction:true});
+   }
    if(path==='/v1/watch/review'&&req.method==='POST'){
     const a=actor(req);
     let b;
