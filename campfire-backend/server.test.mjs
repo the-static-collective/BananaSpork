@@ -73,6 +73,12 @@ test('durable restart: message persists; report does NOT reduce residual; only o
   assert.equal((await x.call('GET',needEndpoint,null,owner.accessToken)).needs[0].residual,12);
   assert.equal((await x.call('POST','/v1/needs/'+nid+'/reports',{units:9,requestId:reportKey},helper.accessToken)).report.duplicate,true);
   const reportId=reported.report.id;
+  const inbox=await x.call('GET','/v1/needs/'+nid+'/reports',null,owner.accessToken);
+  assert.equal(inbox.status,200);
+  assert.equal(inbox.reports.length,1);
+  assert.equal(inbox.reports[0].id,reportId);
+  assert.equal(inbox.reports[0].outstandingUnits,9);
+  assert.equal((await x.call('GET','/v1/needs/'+nid+'/reports',null,helper.accessToken)).status,403);
   assert.equal((await x.call('POST','/v1/reports/'+reportId+'/confirm',{units:6,requestId:randomUUID()},helper.accessToken)).status,403);
   await x.stop();
   x=await launch(path);
@@ -82,6 +88,9 @@ test('durable restart: message persists; report does NOT reduce residual; only o
   const accepted=await x.call('POST','/v1/reports/'+reportId+'/confirm',{units:6,requestId:confirmKey},owner.accessToken);
   assert.equal(accepted.status,201);
   assert.equal(accepted.need.residual,6);
+  const after=await x.call('GET','/v1/needs/'+nid+'/reports',null,owner.accessToken);
+  assert.equal(after.reports[0].acceptedUnits,6);
+  assert.equal(after.reports[0].outstandingUnits,3);
   assert.equal(accepted.evidence,'SEPARATE_OWNER_CAPABILITY_ACCEPTANCE_NOT_PHYSICAL_PROOF');
   const duplicate=await x.call('POST','/v1/reports/'+reportId+'/confirm',{units:6,requestId:confirmKey},owner.accessToken);
   assert.equal(duplicate.confirmation.duplicate,true);
