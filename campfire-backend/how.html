@@ -51,6 +51,16 @@ footer{padding:30px 18px;background:var(--ink);color:white}
 <p>That check asks the computer serving this page whether its program is responding. It does <strong>not</strong> claim the disk is backed up, the server is publicly available, a human is verified, or help was physically delivered.</p>
 <button id="refresh" type="button" style="background:var(--ink);border:0;color:white;padding:11px 18px;font:inherit;font-weight:700;cursor:pointer;border-radius:5px">Check again</button>
 </section>
+<section><h2>What useful thing could happen next?</h2>
+<p>The Firebox now has an <strong>Attention Desk</strong>—not an AI deciding what people need, but a small, accountable checklist grounded in the actual state of the private logbook.</p>
+<div class="cards">
+<div class="card cream"><h3>Observe</h3><p>Check whether a room exists, whether separate member keys were redeemed, whether harmless messages persisted, or whether a report is still waiting for its owner's decision.</p></div>
+<div class="card sage"><h3>Prepare</h3><p>Propose one small thing that could be prepared in the next 24 hours, such as asking someone if they want to test a conversation.</p></div>
+<div class="card"><h3>Ask permission</h3><p>The machine cannot recruit people, assign responsibilities, infer physical deliveries or publish community claims. The human chooses whether to act.</p></div>
+</div>
+<p><strong>On your own computer</strong>, type <code>node campfire-backend/manage.mjs next</code> for the current, private next-action card. It includes <em>what was observed, what can be prepared, whose permission is required, and what would count as evidence.</em></p>
+<p class="warn">The public tour doesn't fetch private Attention Desk data. Only the host operator's locally stored administrator key can read the live counts. No one is contacted when the card is generated.</p>
+</section>
 <section><h2>Does it have to live on this computer forever?</h2>
 <p>No. The software can move to another computer. We would need to move the protected logbook and keep exactly one authoritative writer while the switch happens. We should not have several independent copies pretending to be the same database.</p>
 <div class="cards">
