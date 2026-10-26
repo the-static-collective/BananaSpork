@@ -160,6 +160,18 @@ export function createCampfireBackend({dbPath,bootstrapKey,allowOrigin=null}={})
      'Content-Security-Policy':"default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; connect-src 'self'; base-uri 'none'; frame-ancestors 'none'"});
     return res.end(html);
    }
+   if(path==='/v1/admin/circles'&&req.method==='GET'){
+    admin(req);
+    const rows=db.prepare(`SELECT c.id,c.label,c.created_at,
+      (SELECT COUNT(*) FROM actors a WHERE a.circle_id=c.id
+        AND a.role='owner' AND a.revoked_at IS NULL) AS owners,
+      (SELECT COUNT(*) FROM actors a WHERE a.circle_id=c.id
+        AND a.role='member' AND a.revoked_at IS NULL) AS members
+      FROM circles c ORDER BY c.created_at,c.id LIMIT 100`).all();
+    return send(res,200,{ok:true,rooms:rows,
+      visibility:'ADMIN_ONLY',scope:'ONLY_ID_LABEL_ROLE_COUNTS',
+      noMessageBodies:true,noMemberCredentials:true});
+   }
    if(path==='/v1/admin/circles'&&req.method==='POST'){
     admin(req);const b=await body(req),label=val(b.label,90);
     const c=txn(()=>{const cid=randomUUID();db.prepare('INSERT INTO circles VALUES(?,?,?)').run(cid,label,now());audit(cid,'circle.created',{circleId:cid});return {id:cid,label};});
