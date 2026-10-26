@@ -194,7 +194,7 @@ export function createCampfireBackend({dbPath,bootstrapKey,allowOrigin=null}={})
      return send(res,200,{ok:true,messages:rows});
     }
     if(req.method==='POST'){
-     const b=await body(req),message=val(b.body,2000);
+     const b=await body(req),message=val(b.body,4000);
      const row=txn(()=>{
       const mid=randomUUID(),date=now();
       db.prepare('INSERT INTO messages VALUES(?,?,?,?,?)').run(mid,c,a.id,message,date);
@@ -221,6 +221,17 @@ export function createCampfireBackend({dbPath,bootstrapKey,allowOrigin=null}={})
      });
      return send(res,201,{ok:true,need:result});
     }
+   }
+   match=path.match(/^\/v1\/needs\/([0-9a-f-]+)\/reports$/);
+   if(match&&req.method==='GET'){
+    const n=need(match[1]),a=actor(req,n.circle_id);
+    if(a.id!==n.owner_id)error('NEED_OWNER_ONLY',403);
+    const rows=db.prepare('SELECT id,helper_id,units,created_at FROM reports WHERE need_id=? ORDER BY created_at,id').all(n.id);
+    return send(res,200,{ok:true,reports:rows.map(r=>({
+     id:r.id,helperId:r.helper_id,reportedUnits:r.units,acceptedUnits:reportConfirmed(r.id),
+     outstandingUnits:Math.max(0,r.units-reportConfirmed(r.id)),createdAt:r.created_at,
+     evidence:'REPORT_NOT_PHYSICAL_DELIVERY_PROOF'
+    }))});
    }
    match=path.match(/^\/v1\/needs\/([0-9a-f-]+)\/reports$/);
    if(match&&req.method==='POST'){
