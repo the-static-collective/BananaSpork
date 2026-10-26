@@ -14,6 +14,14 @@ node campfire-backend/manage.mjs next
 
 The backend reads **only aggregate counts** from its private database and makes one grounded, human-readable suggestion: what the Firebox actually observed, what could be prepared, whose consent is required, and what result would count. It never reads private messages to infer what a person wants; it doesn't send invitations, assign people, or claim fulfilled aid. Its internal, administrator-only format is `campfire.operator-attention/v0`.
 
+To find the room ID again without opening the database or asking an IT person, run:
+
+```sh
+node campfire-backend/manage.mjs rooms
+```
+
+This lists only your private room titles, opaque IDs and member/owner **credential counts**. The `next` command can also show an exact operator command for the selected room—**only after the relevant person agrees**. Neither command sends anything.
+
 The companion [ATTENTION-001.md](ATTENTION-001.md) documents the source-first protocol, priority rules, stop conditions, and JARVIS/GRAFT integration boundary. The public waggle capability card exposes none of this private state.
 
 ## Start with the human view, not infrastructure jargon
@@ -137,6 +145,7 @@ These are **programmatic token isolation tests**, not evidence of three real hum
 | GET | `/.well-known/campfire-waggle.json` | None | protocol capabilities only, no private data |
 | GET | `/v1/admin/status` | Admin | private counts, audit check, explicit trust limits |
 | GET | `/v1/admin/attention` | Admin | readonly next-24h proposals and evidence/permission boundaries |
+| GET | `/v1/admin/circles` | Admin | list owned circles and credential counts (no messages or secrets) |
 | POST | `/v1/admin/circles` | 32+-character admin key | creates private circle |
 | POST | `/v1/admin/circles/:id/invites` | Admin | returns one-use owner/member invitation, expires in 24h |
 | POST | `/v1/join` | One-use invite body | returns private member bearer capability |
