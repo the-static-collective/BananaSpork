@@ -20,3 +20,9 @@ android/app/src/main/assets/capacitor.plugins.json
 *.jks
 *.keystore
 android/app/google-services.json
+
+# First-party Campfire backend: NEVER push local credentials or private DB
+/private-data/
+**/*.sqlite
+**/*.sqlite-wal
+**/*.sqlite-shm
