@@ -13,6 +13,7 @@
 <div><h2>Basket · Needs</h2><div id="needs" aria-live="polite"></div>
 <div id="ownerForm" class="hide"><label for="needDesc">A small test need</label><input id="needDesc" maxlength="500" placeholder="For example: 12 sample cartons"><div class="row"><div><label for="needUnits">Units</label><input id="needUnits" type="number" min="1" step="1" value="12"></div><div><label for="needUnit">Unit label</label><input id="needUnit" value="cartons" maxlength="40"></div></div><button id="createNeed">Open a test need</button></div>
 <p class="hint">A member may report help. Only the credential that created the need may accept some or all of a report. No person is automatically enrolled or assigned work.</p></div></div>
+<section><h2>Boundary Check · Independent Tester</h2><p>A third person with their own token from another circle can test whether they are excluded from your private Campfire. This is a local access-control observation, not a credential or physical-witness certification.</p><label for="probeCircle">Another circle's opaque ID</label><input id="probeCircle" autocomplete="off" placeholder="Circle UUID (not a token)"><button id="probe" class="alt">Test whether my token can read it</button><output id="probeResult" role="status">No boundary test attempted.</output></section>
 <output id="status" role="status">Ready.</output>
 </section>
 </main><footer><div>Campfire 001 · self-hosted SQLite backend · No AI inference, advertiser, managed database, auto-publish or verification of physical provision.</div></footer>
@@ -102,5 +103,16 @@ $('createNeed').onclick=async()=>{try{await api('/v1/circles/'+me.circleId+'/nee
 $('refresh').onclick=refresh;
 $('leave').onclick=()=>{sessionStorage.removeItem('campfire-token');token='';me=null;location.reload()};
 $('showToken').onclick=()=>{$('tokenOutput').textContent='SAVE PRIVATELY · '+token;$('tokenOutput').classList.remove('hide')};
+$('probe').onclick=async()=>{
+ const target=$('probeCircle').value.trim();
+ if(!/^[a-f0-9-]{36}$/i.test(target)){note('probeResult','Enter a circle ID, not a secret or invite code.');return;}
+ try{
+  const r=await fetch('/v1/circles/'+target+'/messages',{headers:{Authorization:'Bearer '+token},cache:'no-store'});
+  const body=await r.json();
+  if(r.status===403)note('probeResult','ACCESS DENIED (403) · This credential could not read the other circle. A real observer should verify.');
+  else if(r.ok)note('probeResult','ACCESS ALLOWED · The token can read this circle. If you are not a member, STOP THE FIELD TEST.');
+  else note('probeResult','INCONCLUSIVE ('+r.status+') · '+String(body.error||'Request failed')+'. Do not mark this test passed.');
+ }catch(e){note('probeResult','INCONCLUSIVE network failure. Do not claim a successful security test.')}
+};
 if(token)login();
 </script></body></html>
