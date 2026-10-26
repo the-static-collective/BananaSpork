@@ -7,13 +7,14 @@ const key=process.env.CAMPFIRE_BOOTSTRAP_KEY||
  (existsSync(privateKeyFile)?readFileSync(privateKeyFile,'utf8').trim():null);
 if(typeof key!=='string'||key.length<32)throw Error('CAMPFIRE_BOOTSTRAP_KEY must be at least 32 characters');
 const [action,arg1,arg2]=process.argv.slice(2);
-if(!['circle','invite','revoke','audit','status','next'].includes(action)) {
+if(!['circle','invite','revoke','audit','status','next','rooms'].includes(action)) {
  console.error('Usage: node campfire-backend/manage.mjs circle "Name"');
  console.error('       node campfire-backend/manage.mjs invite <circle-id> owner|member');
  console.error('       node campfire-backend/manage.mjs revoke <actor-id>');
  console.error('       node campfire-backend/manage.mjs audit');
  console.error('       node campfire-backend/manage.mjs status');
  console.error('       node campfire-backend/manage.mjs next');
+ console.error('       node campfire-backend/manage.mjs rooms');
  process.exit(2);
 }
 const commands={
@@ -22,7 +23,8 @@ const commands={
  revoke:{method:'POST',path:'/v1/admin/actors/'+arg1+'/revoke',body:{}},
  audit:{method:'GET',path:'/v1/admin/audit',body:null},
  status:{method:'GET',path:'/v1/admin/status',body:null},
- next:{method:'GET',path:'/v1/admin/attention',body:null}
+ next:{method:'GET',path:'/v1/admin/attention',body:null},
+ rooms:{method:'GET',path:'/v1/admin/circles',body:null}
 };
 const {method,path,body}=commands[action];
 const res=await fetch(root+path,{method,headers:{
@@ -45,6 +47,15 @@ if(action==='invite'){
  console.log('WHO MUST CHOOSE · '+card.permission);
  console.log('WHAT WOULD COUNT · '+card.proof);
  console.log('STATUS · '+card.standing+' · NOTHING EXECUTED');
+ if(card.scope&&card.scope!=='operator'){
+  console.log('ROOM ID · '+card.scope);
+  if(card.code==='NEEDS_OWNER'||card.code==='INVITE_TEST_MEMBER'){
+   const role=card.code==='NEEDS_OWNER'?'owner':'member';
+   console.log('ONLY AFTER PERMISSION · node campfire-backend/manage.mjs invite '+card.scope+' '+role);
+  }
+ }else if(card.code==='FIRST_CIRCLE'){
+  console.log('ONLY AFTER PERMISSION · node campfire-backend/manage.mjs circle "First Campfire"');
+ }
  console.log('');
  if(out.otherOptions.length){
   console.log('OTHER POSSIBILITIES');
@@ -55,6 +66,14 @@ if(action==='invite'){
  console.log('EVIDENCE · '+out.basis+' · '+out.auditState);
  console.log('NOT DONE · no invitation sent, person assigned, public claim, or fulfillment confirmed.');
  console.log('This desk never reads private message text or contacts anybody.');
+}else if(action==='rooms'){
+ console.log('CAMPFIRE · PRIVATE ROOM DIRECTORY');
+ if(!out.rooms.length)console.log('No rooms yet. Ask if anyone wants to try a private test.');
+ for(const [index,r] of out.rooms.entries()){
+  console.log((index+1)+'. '+r.label+' · '+r.id);
+  console.log('   '+r.owners+' owner keys / '+r.members+' member keys (not human identity proof)');
+ }
+ console.log('Room IDs are internal references, not invitation keys. Do not disclose private room titles publicly.');
 }else if(action==='status'){
  console.log('CAMPFIRE · THE FIREBOX REPORT');
  console.log('');
