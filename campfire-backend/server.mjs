@@ -131,6 +131,19 @@ export function createCampfireBackend({dbPath,bootstrapKey,allowOrigin=null}={})
    const path=new URL(req.url,'http://localhost').pathname;
    if(path==='/health'&&req.method==='GET')
     return send(res,200,{ok:true,service:'first-party-campfire',persistence:'sqlite-wal',identity:'CAPABILITY_NOT_HUMAN_ID'});
+   if(path==='/.well-known/campfire-waggle.json'&&req.method==='GET')
+    return send(res,200,{
+     schema:'campfire.waggle/v0',
+     alive:true,software:'first-party-campfire',version:'001',
+     capabilities:['invite-only-conversations','private-needs','helper-reports','owner-capability-acceptance'],
+     joining:'ONE_TIME_INVITE_REQUIRED',
+     privateRecords:'NOT_EXPORTED',
+     trust:'NOT_IDENTITY_OR_PHYSICAL_DELIVERY_EVIDENCE',
+     storage:'SINGLE_AUTHORITATIVE_HOST_SQLITE',
+     replication:'NONE',
+     automation:'NO_AUTO_INVITATIONS_OR_SHARED_RECORDS',
+     nextHumanChoice:'An operator deliberately invites consenting members.'
+    });
    if(path==='/how'&&req.method==='GET'){
     const html=readFileSync(new URL('./how.html',import.meta.url),'utf8');
     res.writeHead(200,{'Content-Type':'text/html; charset=utf-8',
