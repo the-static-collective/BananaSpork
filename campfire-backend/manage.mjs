@@ -1,6 +1,10 @@
 /** Local-only administrator commands. */
+import {existsSync,readFileSync} from 'node:fs';
+import {resolve,join} from 'node:path';
 const root=(process.env.CAMPFIRE_BASE_URL||'http://127.0.0.1:3417').replace(/\/+$/,'');
-const key=process.env.CAMPFIRE_BOOTSTRAP_KEY;
+const privateKeyFile=join(resolve(process.env.CAMPFIRE_DATA_DIR||'./private-data/campfire'),'operator.key');
+const key=process.env.CAMPFIRE_BOOTSTRAP_KEY||
+ (existsSync(privateKeyFile)?readFileSync(privateKeyFile,'utf8').trim():null);
 if(typeof key!=='string'||key.length<32)throw Error('CAMPFIRE_BOOTSTRAP_KEY must be at least 32 characters');
 const [action,arg1,arg2]=process.argv.slice(2);
 if(!['circle','invite','revoke','audit'].includes(action)) {
