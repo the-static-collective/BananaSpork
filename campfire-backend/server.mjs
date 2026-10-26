@@ -55,6 +55,7 @@ export function createCampfireBackend({dbPath,bootstrapKey,allowOrigin=null}={})
  if(typeof bootstrapKey!=='string'||bootstrapKey.length<32)error('BOOTSTRAP_KEY_32_CHAR_REQUIRED');
  if(typeof dbPath!=='string'||!dbPath.trim())error('DURABLE_DB_PATH_REQUIRED');
  if(dbPath!==':memory:')mkdirSync(dirname(resolve(dbPath)),{recursive:true,mode:0o700});
+ const launchAt=now();
  const db=new DatabaseSync(dbPath);
  db.exec('PRAGMA foreign_keys=ON; PRAGMA busy_timeout=5000; PRAGMA journal_mode=WAL;');
  db.exec(ddl);
@@ -130,6 +131,14 @@ export function createCampfireBackend({dbPath,bootstrapKey,allowOrigin=null}={})
    const path=new URL(req.url,'http://localhost').pathname;
    if(path==='/health'&&req.method==='GET')
     return send(res,200,{ok:true,service:'first-party-campfire',persistence:'sqlite-wal',identity:'CAPABILITY_NOT_HUMAN_ID'});
+   if(path==='/how'&&req.method==='GET'){
+    const html=readFileSync(new URL('./how.html',import.meta.url),'utf8');
+    res.writeHead(200,{'Content-Type':'text/html; charset=utf-8',
+     'Cache-Control':'no-store','Referrer-Policy':'no-referrer',
+     'X-Content-Type-Options':'nosniff','X-Frame-Options':'DENY',
+     'Content-Security-Policy':"default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; connect-src 'self'; base-uri 'none'; frame-ancestors 'none'"});
+    return res.end(html);
+   }
    if(path==='/'&&req.method==='GET'){
     const html=readFileSync(new URL('./index.html',import.meta.url),'utf8');
     res.writeHead(200,{'Content-Type':'text/html; charset=utf-8','Cache-Control':'no-store',
@@ -182,6 +191,34 @@ export function createCampfireBackend({dbPath,bootstrapKey,allowOrigin=null}={})
      return {actorId:aid,revoked:true};
     });
     return send(res,200,{ok:true,...result});
+   }
+   if(path==='/v1/admin/status'&&req.method==='GET'){
+    admin(req);
+    const count=table=>db.prepare('SELECT COUNT(*) AS n FROM '+table).get().n;
+    const expired=db.prepare('SELECT COUNT(*) AS n FROM invites WHERE used_at IS NULL AND expires_at<?').get(Date.now()).n;
+    const last=db.prepare('SELECT kind,created_at FROM audit ORDER BY seq DESC LIMIT 1').get();
+    return send(res,200,{
+     ok:true,service:'CAMPFIRE_BACKEND_001',mode:'SINGLE_HOST',
+     dataStore:'SQLITE_WAL_ON_THIS_HOST',started:launchAt,
+     uptimeSeconds:Math.floor(process.uptime()),
+     health:'RESPONDING',audit:verifyAudit(),
+     counts:{
+      circles:count('circles'),
+      activeMembers:db.prepare('SELECT COUNT(*) AS n FROM actors WHERE revoked_at IS NULL').get().n,
+      messages:count('messages'),needs:count('needs'),
+      reports:count('reports'),ownerAcceptances:count('confirmations'),
+      unredeemedInvitations:db.prepare('SELECT COUNT(*) AS n FROM invites WHERE used_at IS NULL AND expires_at>=?').get(Date.now()).n,
+      expiredInvitations:expired
+     },
+     lastActivity:last?.created_at||null,
+     trust:{
+      dataPersistsOnHostDisk:dbPath!==':memory:',
+      isPubliclyReachable:'NOT_MEASURED',
+      diskBackupVerified:false,externalWitnessVerified:false,
+      humanIdentityVerified:false,physicalDeliveryVerified:false
+     },
+     operationalNote:'This is the one authoritative firebox; there is no automatic multi-host SQLite sync or roaming.'
+    });
    }
    if(path==='/v1/admin/audit'&&req.method==='GET'){
     admin(req);return send(res,200,{ok:true,audit:verifyAudit()});
