@@ -1,0 +1,40 @@
+{
+  "schema": "campfire.founding-chair/v0",
+  "eventId": "CHAIR-001-2026-10-26",
+  "effectiveDate": "2026-10-26",
+  "publicAlias": "Lu / The Static Collective",
+  "declaredRole": "INITIAL_VOLUNTEER_STEWARD",
+  "initiation": "EXPLICIT_USER_APPROVAL_IN_CONVERSATION",
+  "consentStanding": "SELF_DECLARED_VOLUNTARY",
+  "verifiedHumanIdentity": false,
+  "administrativePrivilegesConferred": false,
+  "independentReview": "PENDING",
+  "independentReviewer": null,
+  "recusalRequiredForSelfConcern": true,
+  "successorChair": {
+    "id": "CHAIR-002",
+    "standing": "OPEN_UNASSIGNED_INVITATION",
+    "assignee": null,
+    "independentlyConsented": false
+  },
+  "stewardshipPromises": [
+    "KEEP_ACCESS_TO_QUESTION_AND_REFUSE",
+    "NO_PUNISHMENT_FOR_GOOD_FAITH_PROCESS_CONCERNS",
+    "MAINTAIN_PRIVATE_CONSENTED_ACCOUNTABILITY_RECEIPTS",
+    "RECUSE_FROM_JUDGING_OWN_CONDUCT",
+    "NEVER_LINK_AID_TO_VOLUNTEER_DUTY",
+    "PROTECT_PEOPLE_OVER_METRICS_OR_CONTINUITY",
+    "ACCEPT_CORRECTION_AND_ENABLE_ROLE_TRANSFER"
+  ],
+  "boundaries": {
+    "bindingLegalAuthority": false,
+    "organizationalBoardSeat": false,
+    "independenceCertified": false,
+    "externalWitnessed": false,
+    "platformDeployment": false,
+    "thirdPartyPartnerships": false,
+    "physicalOutcomesVerified": false
+  },
+  "history": "First chair declaration approved by the volunteer in conversation on 2026-10-26; transcribed into a proposed GitHub branch. GitHub authorship is not independent identity authentication.",
+  "plainLanguage": "I can hold the first chair. I cannot be the sole judge of my own conduct. Receiving help creates no debt, and every other chair remains free."
+}
