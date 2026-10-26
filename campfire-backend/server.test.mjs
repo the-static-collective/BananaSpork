@@ -66,7 +66,8 @@ test('3 separate member credentials: no anonymous access, no nonmember read/writ
   const desk=await x.call('GET','/v1/admin/attention',null,admin);
   assert.equal(desk.status,200);
   assert.equal(desk.schema,'campfire.operator-attention/v0');
-  assert.equal(desk.next24Hours.code,'TEST_ONE_NEED');
+  assert.equal(desk.next24Hours.code,'NEEDS_OWNER');
+  assert.ok(desk.otherOptions.some(x=>x.code==='TEST_ONE_NEED'));
   assert.equal(desk.next24Hours.canExecute,false);
   assert.equal(desk.authority.personAssigned,false);
   assert.equal(desk.authority.knowledgePublished,false);
