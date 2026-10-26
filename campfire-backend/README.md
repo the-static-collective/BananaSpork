@@ -4,6 +4,30 @@
 
 **Status:** source and offline HTTP integration tests. A public production URL, durable always-on hosting, and real independent human field receipts require the user's machine or an explicitly configured persistent host. Do not confuse a GitHub PR or the Garden's separate public Pocket UI with this service already running.
 
+## One command. No new accounts or backend provider.
+
+From the NanaSpork repository directory on a computer with Node 22.13+:
+
+```sh
+node campfire-backend/start.mjs
+```
+
+Open **http://127.0.0.1:3417/**. The first run creates `private-data/campfire/campfire.sqlite` and a random secret in `private-data/campfire/operator.key`, which it reuses on every restart. Both paths are excluded from Git; they stay on **your** computer. **Do not lose the operator key or database.** Keep the drive protected and make secure offline backups.
+
+In another terminal (same repository):
+
+```sh
+node campfire-backend/manage.mjs circle "First Campfire"
+node campfire-backend/manage.mjs invite '<circle-id>' owner
+node campfire-backend/manage.mjs invite '<circle-id>' member
+```
+
+The admin CLI automatically reads your private key file. **No manual Supabase project, JWT issuer, database account, Docker, password or paid subscription is needed.** The optional env-variable and Docker instructions below are for advanced operators.
+
+### Status and realistic first test
+
+The service runs immediately **on that host**, not on an always-on public domain. To test on someone else's phone, the host needs a secure HTTPS route to this process; do **not** send bearer tokens over ordinary public HTTP. Start with fake data and [FIELD-001.md](FIELD-001.md). The default bind is loopback to prevent accidentally publishing an unfinished survivor/household service.
+
 ## What is real
 
 - **Persistent private Campfire circles:** server-controlled random IDs, one-use expiring invitations, separate 256-bit member capabilities, and hashed storage of all invitation/member tokens.
