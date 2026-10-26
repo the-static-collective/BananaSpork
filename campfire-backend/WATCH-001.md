@@ -8,6 +8,12 @@ No volunteer, moderator, organizer or administrator should become the final auth
 
 This protocol does **not** rate people or adjudicate allegations. It prevents the software from quietly turning the *absence of checked complaints* or the *number of agreeing reviewer credentials* into legitimacy.
 
+## The small human doorway
+
+The first-party Firebox frontend includes a link to **`/watch`**. It reads an existing member's session-only capability from the same browser tab. The page only offers constrained category/scope selects, a private receipt, a list of that reporter credential's own signals, consented one-time reviewer-invitation creation, and a **read-only preview** of the process category before voluntary acknowledgement. It has no free-text case-entry box and no automatic outward message. Opening the page alone does not register or report anything.
+
+**Do not use the page to file a real survivor, custody or child-safety report.** A host-run prototype and a private member credential are not a secure complaint organization. The reporter should keep a copy of their private receipt and should not treat the hash as an externally notarized proof.
+
 ## Actual v0 API (owned Firebox branch; separate from public site)
 
 - Member `POST /v1/circles/:circleId/watch` with **only** `category`, `subjectScope` and a UUID `requestId`. No names, narratives, case IDs, recipient IDs, phone numbers, addresses, attachments or secrets may enter the signal payload. Exact allowlists; three signals per reporter credential per day; idempotent replay.
