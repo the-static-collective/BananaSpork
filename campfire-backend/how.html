@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>The Campfire Tour · What is a backend?</title>
+<style>
+:root{color-scheme:light;--ink:#18382d;--paper:#fff9e9;--cream:#f9edd1;--sage:#e6eddf;--line:#b7c4b1;--amber:#e7b764}
+*{box-sizing:border-box}body{margin:0;background:var(--paper);font:17px/1.55 system-ui,Arial,sans-serif;color:#26372b}
+header{background:var(--ink);color:white;padding:45px 18px}
+.container{max-width:860px;margin:auto}main{padding:16px}
+h1,h2,h3{font-family:Georgia,serif;line-height:1.12;letter-spacing:-.025em}h1{font-size:clamp(2.5rem,7vw,5rem);margin:.3em 0}h2{font-size:2rem;margin-bottom:8px}
+h3{font-size:1.4rem;margin:.2em 0}.lead{font-size:1.2rem}.tag{text-transform:uppercase;letter-spacing:.12em;font-size:.72rem;font-weight:800}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:13px}
+.card{background:white;border:1px solid var(--line);padding:20px;border-radius:7px}
+.cream{background:var(--cream)}.sage{background:var(--sage)}
+figure{margin:20px 0;padding:17px;background:#e7ebdb;border:1px solid #b7c9b8;border-radius:7px}
+.flow{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.flow span{border:1px solid #789582;background:white;border-radius:5px;padding:8px 12px;font-weight:700}.flow b{font-size:1.3rem}
+a{color:#1e5540}header a{color:#f7e0ab}p{margin:12px 0}
+section{margin:28px 0}.state{font-size:1.15rem;font-weight:700;padding:15px;border-radius:7px;border:1px solid var(--line);background:white}
+details{background:white;border:1px solid var(--line);padding:15px;margin:10px 0;border-radius:7px}
+summary{cursor:pointer;font-weight:750}
+code{background:#f1e6c9;padding:2px 5px;overflow-wrap:anywhere}
+.warn{background:#fff1da;border-left:4px solid #c8783b;padding:15px}
+a.button{display:inline-block;background:var(--ink);color:white;padding:12px 17px;border-radius:5px;text-decoration:none;font-weight:750}
+footer{padding:30px 18px;background:var(--ink);color:white}
+</style>
+</head>
+<body>
+<header><div class="container"><div class="tag">The Static Collective · Campfire</div>
+<h1>The backend<br>without the bullshit.</h1>
+<p class="lead">You shouldn't need to know DNS, database jargon, or cloud architecture to tell whether your community's software works.</p>
+<a href="/">← Return to Campfire</a>
+</div></header>
+<main class="container">
+<section aria-labelledby="answer"><h2 id="answer">What is a backend?</h2>
+<p>It's <strong>the part of the website that remembers things, checks who is allowed in, and keeps promises about the rules</strong> even after you close your browser.</p>
+<p>Think of it as a small community building, not a mysterious cloud.</p>
+<div class="cards">
+<article class="card cream"><div class="tag">01 · The building</div><h3>Firebox</h3><p>The Node program that accepts visitors, checks permission, and runs the actual rules. It's a program running on one computer.</p></article>
+<article class="card"><div class="tag">02 · The logbook</div><h3>Memory</h3><p>One SQLite database file on that computer keeps the circles, messages, needs, and reported outcomes across restarts.</p></article>
+<article class="card sage"><div class="tag">03 · The keys</div><h3>Gatekeeper</h3><p>One-use invitations give a participant a private key. The firebox decides what that particular key may read and change.</p></article>
+<article class="card"><div class="tag">04 · The room</div><h3>Campfire</h3><p>The page on your phone. People talk, offer, report, and separately accept a report. The web page is the door, not the logbook.</p></article>
+</div></section>
+<section><h2>How a message actually moves</h2>
+<figure><div class="flow"><span>Your phone</span><b>→</b><span>Firebox checks your key</span><b>→</b><span>Logbook saves message</span><b>→</b><span>Other invited member refreshes</span></div>
+<figcaption><p>No AI has to interpret the message. No third-party database has to be chosen. The computer hosting the Firebox does need to stay reachable, and its disk needs protection and backups.</p></figcaption>
+</figure></section>
+<section><h2>Is our backend actually running?</h2>
+<div class="state" id="pulse" role="status">Checking the firebox on this address…</div>
+<p class="tag">Waggle dance · heartbeat 001</p>
+<p>That check asks the computer serving this page whether its program is responding. It does <strong>not</strong> claim the disk is backed up, the server is publicly available, a human is verified, or help was physically delivered.</p>
+<button id="refresh" type="button" style="background:var(--ink);border:0;color:white;padding:11px 18px;font:inherit;font-weight:700;cursor:pointer;border-radius:5px">Check again</button>
+</section>
+<section><h2>Does it have to live on this computer forever?</h2>
+<p>No. The software can move to another computer. We would need to move the protected logbook and keep exactly one authoritative writer while the switch happens. We should not have several independent copies pretending to be the same database.</p>
+<div class="cards">
+<div class="card"><h3>Local mode</h3><p>Run one command on a spare PC. The browser page opens on that machine. It's a great first test.</p><p><code>node campfire-backend/start.mjs</code></p></div>
+<div class="card"><h3>Hosted mode</h3><p>Run the same Firebox on a protected server with real persistent storage and HTTPS. It can then serve phones anywhere the service is authorized.</p></div>
+<div class="card"><h3>Waggle mode (future)</h3><p>Stateless helpers may roam, look for opportunities, and carry <em>approved public-safe hints</em>. They cannot carry or fork the private logbook or claim a delivery was confirmed.</p></div>
+</div>
+<p class="warn"><strong>Modal reality check:</strong> Modal can host Node web servers, but Modal Volumes have explicit synchronization and concurrent-writer limitations. We should <strong>not</strong> casually run a writable SQLite/WAL logbook across autoscaling Modal containers. Before a Modal release, the durable single-writer boundary needs an appropriate design.</p></section>
+<section><h2>What do I actually have to do?</h2>
+<details open><summary>I want to test it on one computer.</summary><p>Get the code from the NanaSpork project, use Node 22.13+, run <code>node campfire-backend/start.mjs</code>, and open <code>http://127.0.0.1:3417/</code>. It creates its own private logbook and operator key. No external database account.</p></details>
+<details><summary>I want two people to join.</summary><p>Make a circle and two separate one-time invitations with the included operator command. People must keep their own keys private. Remote phones additionally need a secure HTTPS connection to the server. Nobody is enrolled automatically.</p></details>
+<details><summary>How do I know what it remembered?</summary><p>On the host computer, type <code>node campfire-backend/manage.mjs status</code>. It describes the live database in everyday language and checks the local audit chain. The operator key stays on the host.</p></details>
+<details><summary>What if my computer turns off?</summary><p>Other people can't reach it until it's running again. Messages already written to its private database survive an ordinary restart. Without a separate tested backup, disk failure could still lose data.</p></details>
+<details><summary>Does pressing “accepted” prove actual food was delivered?</summary><p>No. It proves that the credential assigned to the need's owner accepted a reported quantity in the system. Physical delivery and independent recipient identity need separate evidence.</p></details>
+<details><summary>Can people safely share survivor stories or custody records here?</summary><p>Not yet. This first version keeps message text readable on the server disk and has not passed a sensitive-data security review. Use fictional test information only.</p></details>
+<p><a href="/" class="button">Open the Campfire</a></p>
+</section>
+</main><footer><div class="container">The user sees a room. The room knows its keeper. The keeper can explain its work. · Campfire 001</div></footer>
+<script>
+const el=document.getElementById('pulse');
+async function check(){
+ el.textContent='Checking this Firebox…';
+ try{
+  const response=await fetch('/health',{cache:'no-store'});
+  const body=await response.json();
+  if(response.ok&&body.ok&&body.service==='first-party-campfire'){
+   el.textContent='✓ The Firebox is responding on this address. Messages are stored by its SQLite program. This is a heartbeat, not a backup check.';
+  }else{
+   el.textContent='! The Firebox gave an unexpected answer. This check does not prove it is healthy.';
+  }
+ }catch{
+  el.textContent='! Cannot contact the Firebox. It might be offline or unreachable.';
+ }
+}
+document.getElementById('refresh').addEventListener('click',check);
+check();
+</script>
+</body></html>
