@@ -79,6 +79,16 @@ test('3 separate member credentials: no anonymous access, no nonmember read/writ
 
   assert.equal(JSON.stringify(desk).includes('Hi from A'),false);
   assert.equal(JSON.stringify(desk).includes(owner.accessToken),false);
+  assert.equal((await x.call('GET','/v1/admin/circles')).status,403);
+  assert.equal((await x.call('GET','/v1/admin/circles',null,helper.accessToken)).status,403);
+  const directory=await x.call('GET','/v1/admin/circles',null,admin);
+  assert.equal(directory.status,200);
+  assert.equal(directory.rooms.length,2);
+  assert.equal(directory.rooms[0].owners,1);
+  assert.equal(directory.rooms[0].members,1);
+  assert.equal(directory.noMessageBodies,true);
+  assert.equal(JSON.stringify(directory).includes('Hi from A'),false);
+  assert.equal(JSON.stringify(directory).includes(owner.accessToken),false);
   const privateStatus=await x.call('GET','/v1/admin/status',null,admin);
   assert.equal(privateStatus.status,200);
   assert.equal(privateStatus.counts.circles,2);
