@@ -57,10 +57,18 @@ test('a private member report survives two independently authenticated reviewer-
   const two=await x.call('POST',url,{},reporter.accessToken);
   assert.equal(one.status,201);assert.equal(two.status,201);
   const submit=(credential,inviteCode,stance)=>x.call('POST','/v1/watch/review',{inviteCode,stance},credential);
+  const view=await x.call('POST','/v1/watch/preview',{inviteCode:one.inviteCode},first.accessToken);
+  assert.equal(view.status,200);
+  assert.equal(view.category,'COERCION_OR_RETALIATION');
+  assert.equal(view.subjectScope,'CIRCLE_OWNER');
+  assert.equal(view.noFindingOfFault,true);
+  assert.equal((await x.call('POST','/v1/watch/preview',{inviteCode:one.inviteCode},owner.accessToken)).status,403);
+  assert.equal((await x.call('POST','/v1/watch/preview',{inviteCode:one.inviteCode},outside.accessToken)).status,403);
   assert.equal((await submit(outside.accessToken,one.inviteCode,'ACKNOWLEDGED_FOR_ESCALATION')).status,403);
   assert.equal((await submit(owner.accessToken,one.inviteCode,'ACKNOWLEDGED_FOR_ESCALATION')).status,403);
   assert.equal((await submit(reporter.accessToken,one.inviteCode,'ACKNOWLEDGED_FOR_ESCALATION')).status,403);
   assert.equal((await submit(first.accessToken,one.inviteCode,'ACKNOWLEDGED_FOR_ESCALATION')).status,201);
+  assert.equal((await x.call('POST','/v1/watch/preview',{inviteCode:one.inviteCode},second.accessToken)).status,403);
   assert.equal((await submit(first.accessToken,two.inviteCode,'INDEPENDENT_REVIEW_NEEDED')).status,409);
   const attended=await submit(second.accessToken,two.inviteCode,'INDEPENDENT_REVIEW_NEEDED');
   assert.equal(attended.status,201);assert.equal(attended.complaintResolved,false);
