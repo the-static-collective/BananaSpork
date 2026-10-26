@@ -21,6 +21,8 @@ jobs:
           node-version: '22'
       - name: Exercise HTTP API against durable SQLite
         run: node --test campfire-backend/server.test.mjs
+      - name: Prove one-command private bootstrap and durable restart
+        run: node --test campfire-backend/start.test.mjs
       - name: Validate self-host server syntax
         run: |
           node --check campfire-backend/server.mjs
