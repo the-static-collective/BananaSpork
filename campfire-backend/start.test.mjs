@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {spawn} from 'node:child_process';
+import {spawn,spawnSync} from 'node:child_process';
 import {createServer} from 'node:net';
 import {mkdtempSync,readFileSync,existsSync,rmSync} from 'node:fs';
 import {tmpdir} from 'node:os';
@@ -55,6 +55,16 @@ test('one-command startup creates local key & SQLite and reuses them after resta
    body:JSON.stringify({label:'A durable private test circle'})});
   assert.equal(created.status,201);
   const result=await created.json();assert.equal(result.ok,true);
+  const status=spawnSync(process.execPath,['campfire-backend/manage.mjs','status'],{
+   cwd:process.cwd(),encoding:'utf8',timeout:5000,
+   env:{...process.env,CAMPFIRE_DATA_DIR:dir,CAMPFIRE_BASE_URL:base,CAMPFIRE_BOOTSTRAP_KEY:''}
+  });
+  assert.equal(status.status,0,status.stderr);
+  assert.match(status.stdout,/CAMPFIRE · THE FIREBOX REPORT/);
+  assert.match(status.stdout,/THE CAMPFIRES · 1 circles/);
+  assert.match(status.stdout,/Backup: NOT VERIFIED/);
+  assert.doesNotMatch(status.stdout,new RegExp(key));
+
   await stop(child);
   child=await run(dir,port);
   assert.equal(readFileSync(keyPath,'utf8').trim(),key,'admin key should persist');
