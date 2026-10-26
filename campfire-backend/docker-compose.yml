@@ -1,0 +1,25 @@
+services:
+  campfire:
+    build:
+      context: ..
+      dockerfile: campfire-backend/Dockerfile
+    restart: unless-stopped
+    environment:
+      CAMPFIRE_BOOTSTRAP_KEY: "${CAMPFIRE_BOOTSTRAP_KEY:?Create a private random administrator key}"
+      CAMPFIRE_DB_PATH: /data/campfire.sqlite
+      CAMPFIRE_HOST: 0.0.0.0
+      CAMPFIRE_PORT: 3417
+      CAMPFIRE_ALLOW_NETWORK: "yes"
+    volumes:
+      - campfire-state:/data
+    ports:
+      - "127.0.0.1:3417:3417"
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+volumes:
+  campfire-state:
