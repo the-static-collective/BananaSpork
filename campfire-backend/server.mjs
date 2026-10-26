@@ -362,7 +362,7 @@ export function createCampfireBackend({dbPath,bootstrapKey,allowOrigin=null}={})
     let b;
     try { b=parseReviewStance(await body(req)); }
     catch(e){if(e.status)throw e;error('INVALID_REVIEW_SUBMISSION');}
-    if(!/^[-\\w]{43,}$/.test(b.inviteCode))error('INVALID_INVITE');
+    if(!/^[-\w]{43,}$/.test(b.inviteCode))error('INVALID_INVITE');
     const result=txn(()=>{
       const invite=db.prepare('SELECT * FROM watch_invites WHERE token_hash=?').get(sha(b.inviteCode));
       if(!invite||invite.used_at||invite.expires_at<Date.now())
