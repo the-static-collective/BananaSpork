@@ -63,6 +63,7 @@ test('3 separate member credentials: no anonymous access, no nonmember read/writ
   // A non-operator cannot read the Attention Desk or see what questions might exist.
   assert.equal((await x.call('GET','/v1/admin/attention')).status,403);
   assert.equal((await x.call('GET','/v1/admin/attention',null,helper.accessToken)).status,403);
+  const activityBefore=await x.call('GET','/v1/admin/audit',null,admin);
   const desk=await x.call('GET','/v1/admin/attention',null,admin);
   assert.equal(desk.status,200);
   assert.equal(desk.schema,'campfire.operator-attention/v0');
@@ -71,6 +72,11 @@ test('3 separate member credentials: no anonymous access, no nonmember read/writ
   assert.equal(desk.next24Hours.canExecute,false);
   assert.equal(desk.authority.personAssigned,false);
   assert.equal(desk.authority.knowledgePublished,false);
+  const activityAfter=await x.call('GET','/v1/admin/audit',null,admin);
+  assert.equal(activityAfter.audit.checked,activityBefore.audit.checked,
+   'a proposed next action may not add any durable audit/write event');
+  assert.equal(activityAfter.audit.head,activityBefore.audit.head);
+
   assert.equal(JSON.stringify(desk).includes('Hi from A'),false);
   assert.equal(JSON.stringify(desk).includes(owner.accessToken),false);
   const privateStatus=await x.call('GET','/v1/admin/status',null,admin);
