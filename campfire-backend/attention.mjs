@@ -34,8 +34,8 @@ export function buildAttention({counts={},audit=null,circles=[],backupVerified=f
    'One circle exists, but nobody has been enrolled automatically.'));
  } else {
   for(const c of circles.slice(0,20)){
-   if(typeof c.id!=='string'||!Number.isSafeInteger(c.owners)||!Number.isSafeInteger(c.members)||
-      !Number.isSafeInteger(c.messages)||!Number.isSafeInteger(c.needs)||!Number.isSafeInteger(c.unreviewedReports))
+   if(typeof c.id!=='string'||!['owners','members','messages','needs','unreviewedReports']
+       .every(k=>Number.isSafeInteger(c[k])&&c[k]>=0))
     throw Error('INVALID_CIRCLE_SNAPSHOT');
    if(c.owners===0){
     items.push(card('NEEDS_OWNER','next','Give this room a willing keeper',
