@@ -51,6 +51,23 @@ test('3 separate member credentials: no anonymous access, no nonmember read/writ
   assert.equal((await x.call('GET',endpoint,null,helper.accessToken)).messages[0].body,'Hi from A');
   assert.equal((await x.call('POST','/v1/join',{inviteCode:owner.inviteCode})).status,403);
   assert.equal((await x.call('GET','/v1/admin/audit',null,owner.accessToken)).status,403);
+  assert.equal((await x.call('GET','/v1/admin/status')).status,403);
+  assert.equal((await x.call('GET','/v1/admin/status',null,owner.accessToken)).status,403);
+  const privateStatus=await x.call('GET','/v1/admin/status',null,admin);
+  assert.equal(privateStatus.status,200);
+  assert.equal(privateStatus.counts.circles,2);
+  assert.equal(privateStatus.counts.activeMembers,3);
+  assert.equal(privateStatus.trust.physicalDeliveryVerified,false);
+  assert.equal(privateStatus.trust.diskBackupVerified,false);
+  assert.equal(privateStatus.trust.dataPersistsOnHostDisk,true);
+  assert.equal(privateStatus.audit.ok,true);
+  const tour=await fetch(x.origin+'/how');
+  assert.equal(tour.status,200);
+  assert.match(await tour.text(),/The backend/);
+  const hello=await fetch(x.origin+'/');
+  assert.equal(hello.status,200);
+  assert.match(await hello.text(),/Take the 2-minute backend tour/);
+
   assert.equal((await x.call('POST',endpoint,{body:'Allowed message'},helper.accessToken)).status,201);
   assert.equal((await x.call('GET','/v1/circles/'+c2+'/messages',null,owner.accessToken)).status,403);
   // Public UI is an HTML page; no credentials or private circle data are rendered.
@@ -65,6 +82,10 @@ test('durable restart: message persists; report does NOT reduce residual; only o
   const needEndpoint='/v1/circles/'+circle+'/needs';
   const opened=await x.call('POST',needEndpoint,{description:'12 hypothetical sample cartons',unit:'cartons',units:12},owner.accessToken);
   assert.equal(opened.status,201);
+  const snapshot=await x.call('GET','/v1/admin/status',null,admin);
+  assert.equal(snapshot.counts.needs,1);
+  assert.equal(snapshot.counts.reports,0);
+
   assert.equal((await x.call('POST',needEndpoint,{description:'other',unit:'items',units:1},helper.accessToken)).status,403);
   const nid=opened.need.id,reportKey=randomUUID();
   const reported=await x.call('POST','/v1/needs/'+nid+'/reports',{units:9,requestId:reportKey},helper.accessToken);
