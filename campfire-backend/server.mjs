@@ -9,6 +9,7 @@ import {randomBytes,randomUUID,createHash,timingSafeEqual} from 'node:crypto';
 import {mkdirSync,chmodSync,readFileSync} from 'node:fs';
 import {resolve,dirname} from 'node:path';
 import {fileURLToPath} from 'node:url';
+import {buildAttention} from './attention.mjs';
 
 const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const sha=x=>createHash('sha256').update(x).digest('hex');
@@ -232,6 +233,31 @@ export function createCampfireBackend({dbPath,bootstrapKey,allowOrigin=null}={})
      },
      operationalNote:'This is the one authoritative firebox; there is no automatic multi-host SQLite sync or roaming.'
     });
+   }
+   if(path==='/v1/admin/attention'&&req.method==='GET'){
+    admin(req);
+    // Aggregates only. This query NEVER selects message bodies, need descriptions,
+    // recipient details, auth token hashes, or private Help Slip contents.
+    const count=(name)=>db.prepare('SELECT COUNT(*) AS n FROM '+name).get().n;
+    const groups=db.prepare(`SELECT
+      c.id,
+      (SELECT COUNT(*) FROM actors a WHERE a.circle_id=c.id AND a.revoked_at IS NULL AND a.role='owner') AS owners,
+      (SELECT COUNT(*) FROM actors a WHERE a.circle_id=c.id AND a.revoked_at IS NULL AND a.role='member') AS members,
+      (SELECT COUNT(*) FROM messages m WHERE m.circle_id=c.id) AS messages,
+      (SELECT COUNT(*) FROM needs n WHERE n.circle_id=c.id) AS needs,
+      (SELECT COUNT(*) FROM reports r JOIN needs n ON n.id=r.need_id
+       WHERE n.circle_id=c.id AND r.units >
+         (SELECT COALESCE(SUM(cf.units),0) FROM confirmations cf WHERE cf.report_id=r.id)) AS unreviewedReports
+      FROM circles c ORDER BY c.created_at,c.id LIMIT 20`).all();
+    const counts={
+     circles:count('circles'),
+     activeMembers:db.prepare('SELECT COUNT(*) AS n FROM actors WHERE revoked_at IS NULL').get().n,
+     messages:count('messages'),needs:count('needs'),reports:count('reports'),
+     ownerAcceptances:count('confirmations'),
+     unredeemedInvitations:db.prepare('SELECT COUNT(*) AS n FROM invites WHERE used_at IS NULL AND expires_at>=?').get(Date.now()).n
+    };
+    return send(res,200,buildAttention({counts,circles:groups,audit:verifyAudit(),
+      backupVerified:false}));
    }
    if(path==='/v1/admin/audit'&&req.method==='GET'){
     admin(req);return send(res,200,{ok:true,audit:verifyAudit()});
