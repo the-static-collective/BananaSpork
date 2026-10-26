@@ -4,6 +4,18 @@
 
 **Status:** source and offline HTTP integration tests. A public production URL, durable always-on hosting, and real independent human field receipts require the user's machine or an explicitly configured persistent host. Do not confuse a GitHub PR or the Garden's separate public Pocket UI with this service already running.
 
+## The Attention Desk: "What useful thing can we do in the next 24 hours?"
+
+After you start the Firebox, type:
+
+```sh
+node campfire-backend/manage.mjs next
+```
+
+The backend reads **only aggregate counts** from its private database and makes one grounded, human-readable suggestion: what the Firebox actually observed, what could be prepared, whose consent is required, and what result would count. It never reads private messages to infer what a person wants; it doesn't send invitations, assign people, or claim fulfilled aid. Its internal, administrator-only format is `campfire.operator-attention/v0`.
+
+The companion [ATTENTION-001.md](ATTENTION-001.md) documents the source-first protocol, priority rules, stop conditions, and JARVIS/GRAFT integration boundary. The public waggle capability card exposes none of this private state.
+
 ## Start with the human view, not infrastructure jargon
 
 After the one-command startup, open **http://127.0.0.1:3417/how**. It explains the four actual parts of the backend—Firebox, Logbook, Keys and Door—and shows whether the currently contacted server is awake. No operator secret is given to the browser.
@@ -124,6 +136,7 @@ These are **programmatic token isolation tests**, not evidence of three real hum
 | GET | `/how` | None | nontechnical tour and public pulse, no admin info |
 | GET | `/.well-known/campfire-waggle.json` | None | protocol capabilities only, no private data |
 | GET | `/v1/admin/status` | Admin | private counts, audit check, explicit trust limits |
+| GET | `/v1/admin/attention` | Admin | readonly next-24h proposals and evidence/permission boundaries |
 | POST | `/v1/admin/circles` | 32+-character admin key | creates private circle |
 | POST | `/v1/admin/circles/:id/invites` | Admin | returns one-use owner/member invitation, expires in 24h |
 | POST | `/v1/join` | One-use invite body | returns private member bearer capability |
