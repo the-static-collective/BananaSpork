@@ -21,7 +21,7 @@
     "android:run": "npx cap run android",
     "android:build": "npm run android:sync && cd android && ./gradlew assembleDebug",
     "field:check": "node --import tsx scripts/field-trial-check.ts",
-    "campfire:start": "node campfire-backend/server.mjs",
+    "campfire:start": "node campfire-backend/start.mjs",
     "campfire:admin": "node campfire-backend/manage.mjs"
   },
   "dependencies": {
