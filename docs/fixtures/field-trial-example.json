@@ -1,0 +1,44 @@
+{
+  "schema": "bananaspork.field-trial-observation/v0",
+  "targetProjectRef": "aaaaaaaaaaaaaaaaaaaa",
+  "operatorReviewed": false,
+  "synthetic": true,
+  "checks": {
+    "intentionally_selected_bananaspork_project": "not-run",
+    "conversation_migration_verified_on_target": "not-run",
+    "independent_a_authenticated": "not-run",
+    "independent_b_authenticated": "not-run",
+    "independent_c_nonmember_authenticated": "not-run",
+    "member_a_sent": "not-run",
+    "member_b_received": "not-run",
+    "sender_identity_derived_from_auth": "not-run",
+    "nonmember_select_refused": "not-run",
+    "nonmember_insert_refused": "not-run",
+    "restart_rehydrated_shared_messages": "not-run",
+    "duplicate_envelope_one_held_need": "not-run",
+    "requirement_poured_with_user_selection": "not-run",
+    "helper_report_did_not_confirm": "not-run",
+    "recipient_partially_confirmed": "not-run",
+    "source_envelope_unchanged": "not-run",
+    "unresolved_need_preserved": "not-run"
+  },
+  "specimen": {
+    "requestedUnits": 24,
+    "helperReportedUnits": 14,
+    "recipientConfirmedUnits": 6,
+    "residualBeforeReport": 24,
+    "residualAfterReport": 24,
+    "residualAfterConfirmation": 18,
+    "heldDemandIds": [
+      "held:synthetic-001",
+      "held:synthetic-001"
+    ],
+    "arrivalIds": [
+      "arrival:synthetic-001",
+      "arrival:synthetic-002"
+    ],
+    "sourceHashBefore": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "sourceHashAfter": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "claimedOccurrenceRefs": []
+  }
+}
