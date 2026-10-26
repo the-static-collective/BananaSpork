@@ -56,7 +56,7 @@ test('CLI emits only private held packet into a new directory; never overwrites'
   const root=await mkdtemp(join(tmpdir(),'inheritance-'));
   try {
     const folder=join(root,'one');
-    const argv=['--kind','garden_work','--availability','unsure','--intent','I_OFFER_FREELY','--output-directory',folder];
+    const argv=['--kind','garden_work','--availability','unsure','--intent','I_OFFER_FREELY','--adult-affirmation','I_AM_AN_ADULT','--output-directory',folder];
     const result=await run(argv);
     assert.equal(result.state,'HOLD_FOR_PRIVATE_REVIEW');
     const json=JSON.parse(await readFile(join(folder,'review.json'),'utf8'));
@@ -64,9 +64,11 @@ test('CLI emits only private held packet into a new directory; never overwrites'
     const html=await readFile(join(folder,'review.html'),'utf8');
     assert.match(html,/PRIVATE REVIEW/);assert.doesNotMatch(html,/contact@|http:\/\//);
     assert.equal((await stat(join(folder,'review.json'))).mode & 0o777,0o600);
+    assert.equal((await stat(folder)).mode & 0o777,0o700);
     await assert.rejects(run(argv),/EEXIST/);
-    await assert.rejects(run(['--kind','garden_work','--availability','unsure','--intent','not consent','--output-directory',join(root,'bad')]),/SEED_REFUSED/);
+    await assert.rejects(run(['--kind','garden_work','--availability','unsure','--intent','not consent','--adult-affirmation','I_AM_AN_ADULT','--output-directory',join(root,'bad')]),/SEED_REFUSED/);
     await assert.rejects(stat(join(root,'bad')),/ENOENT/);
     await assert.rejects(run([...argv,'--case','abc']),/USAGE|FOUR_EXPLICIT/);
+    await assert.rejects(run(['--kind','garden_work','--availability','unsure','--intent','I_OFFER_FREELY','--adult-affirmation','NO','--output-directory',join(root,'not-adult')]),/SEED_REFUSED/);
   } finally{await rm(root,{recursive:true,force:true});}
 });
