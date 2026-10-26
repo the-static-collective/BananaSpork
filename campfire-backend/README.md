@@ -105,3 +105,7 @@ These are **programmatic token isolation tests**, not evidence of three real hum
 ## Known v1 omissions before sensitive/public production
 
 No identity-proofing, password/device-loss recovery, two-factor authentication, automated encrypted backups/restore drills, client-side encryption, per-recipient privacy controls, attachment scanning, anti-abuse reporting, audited server-side user deletion/retention, independent cross-device physical custody proof, or push/realtime messaging. The present UI requires manual refresh. SQLite WAL is suitable for a **single writable server with persistent disk**, not multiple stateless Vercel functions sharing a nonexistent filesystem. Keep it invite-only and use synthetic data until consent/security testing is complete.
+
+## First real three-person test with no Supabase project
+
+Use [FIELD-001.md](FIELD-001.md) for the self-owned Campfire workflow: Circle A owner and member, Circle B nonmember, built-in **Boundary Check** on the phone (must return HTTP 403), persistent message restart, a small report then partial owner acceptance. This supersedes the *need to find a hosted Supabase project* for this route. The alternate legacy Supabase field-proof document remains valid only if that source infrastructure is deliberately chosen. A verified human/physical-world recipient remains a separate gate.
