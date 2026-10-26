@@ -1,0 +1,32 @@
+name: Campfire Owned Backend
+on:
+  push:
+    branches:
+      - feat/campfire-selfhost-backend-001
+  pull_request:
+    branches:
+      - main
+      - feat/field-specimen-independent-proof-002
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  provider-free-backend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Exercise HTTP API against durable SQLite
+        run: node --test campfire-backend/server.test.mjs
+      - name: Validate self-host server syntax
+        run: |
+          node --check campfire-backend/server.mjs
+          node --check campfire-backend/manage.mjs
+      - name: Verify no third-party backend imports
+        run: |
+          if grep -Eq "from ['\"](supabase|firebase|@vercel|@supabase|aws-sdk)" campfire-backend/server.mjs; then
+            echo 'unexpected external backend dependency'; exit 1
+          fi
