@@ -53,6 +53,13 @@ test('3 separate member credentials: no anonymous access, no nonmember read/writ
   assert.equal((await x.call('GET','/v1/admin/audit',null,owner.accessToken)).status,403);
   assert.equal((await x.call('GET','/v1/admin/status')).status,403);
   assert.equal((await x.call('GET','/v1/admin/status',null,owner.accessToken)).status,403);
+  const dance=await x.call('GET','/.well-known/campfire-waggle.json');
+  assert.equal(dance.status,200);
+  assert.equal(dance.schema,'campfire.waggle/v0');
+  assert.equal(dance.privateRecords,'NOT_EXPORTED');
+  assert.equal(dance.replication,'NONE');
+  assert.equal(dance.automation,'NO_AUTO_INVITATIONS_OR_SHARED_RECORDS');
+  assert.equal(JSON.stringify(dance).includes(owner.accessToken),false);
   const privateStatus=await x.call('GET','/v1/admin/status',null,admin);
   assert.equal(privateStatus.status,200);
   assert.equal(privateStatus.counts.circles,2);
