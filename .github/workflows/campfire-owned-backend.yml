@@ -23,6 +23,8 @@ jobs:
         run: node --test campfire-backend/server.test.mjs
       - name: Prove one-command private bootstrap and durable restart
         run: node --test campfire-backend/start.test.mjs
+      - name: Audit the Attention Desk's refusal and truth boundaries
+        run: node --test campfire-backend/attention.test.mjs
       - name: Validate self-host server syntax
         run: |
           node --check campfire-backend/server.mjs
