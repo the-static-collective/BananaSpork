@@ -1,0 +1,37 @@
+name: Field specimen independent proof
+on:
+  push:
+    branches:
+      - feat/field-specimen-independent-proof-002
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  independent-preflight:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+      - name: Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Install locked dependencies
+        run: npm ci
+      - name: Check TypeScript and field proof types
+        run: npm run lint
+      - name: Run full NanaSpork domain tests
+        run: npm test
+      - name: Validate fixture remains synthetic, not a field confirmation
+        run: |
+          npm run field:check -- docs/fixtures/field-trial-example.json | tee /tmp/field-sample-review.txt
+          grep -q 'SYNTHETIC_EXERCISE' /tmp/field-sample-review.txt
+          grep -q '"independentlyVerified": false' /tmp/field-sample-review.txt
+          grep -q '"physicalProvisionVerified": false' /tmp/field-sample-review.txt
+      - name: Verify web/server build
+        run: npm run build
