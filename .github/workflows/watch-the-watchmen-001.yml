@@ -1,0 +1,37 @@
+name: Watch the Watchmen 001 — no self-certification
+on:
+  push:
+    branches:
+      - feat/watch-the-watchmen-001
+  pull_request:
+    paths:
+      - 'campfire-backend/watch*'
+      - 'campfire-backend/server.mjs'
+      - 'campfire-backend/manage.mjs'
+      - 'package.json'
+      - '.github/workflows/watch-the-watchmen-001.yml'
+permissions:
+  contents: read
+jobs:
+  synthetic-oversight-contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.13.1'
+          cache: npm
+      - run: npm ci
+      - name: Syntax
+        run: |
+          node --check campfire-backend/server.mjs
+          node --check campfire-backend/watch-policy.mjs
+          node --check campfire-backend/manage.mjs
+      - name: Two member-key reviewer fixture
+        run: node --test campfire-backend/watch.test.mjs
+      - name: Full Campfire + NanaSpork regression
+        run: npm test
+      - name: Typecheck and client/server build
+        run: |
+          npm run lint
+          npm run build

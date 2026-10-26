@@ -7,7 +7,7 @@ const key=process.env.CAMPFIRE_BOOTSTRAP_KEY||
  (existsSync(privateKeyFile)?readFileSync(privateKeyFile,'utf8').trim():null);
 if(typeof key!=='string'||key.length<32)throw Error('CAMPFIRE_BOOTSTRAP_KEY must be at least 32 characters');
 const [action,arg1,arg2]=process.argv.slice(2);
-if(!['circle','invite','revoke','audit','status','next','rooms'].includes(action)) {
+if(!['circle','invite','revoke','audit','status','next','rooms','watch'].includes(action)) {
  console.error('Usage: node campfire-backend/manage.mjs circle "Name"');
  console.error('       node campfire-backend/manage.mjs invite <circle-id> owner|member');
  console.error('       node campfire-backend/manage.mjs revoke <actor-id>');
@@ -15,6 +15,7 @@ if(!['circle','invite','revoke','audit','status','next','rooms'].includes(action
  console.error('       node campfire-backend/manage.mjs status');
  console.error('       node campfire-backend/manage.mjs next');
  console.error('       node campfire-backend/manage.mjs rooms');
+ console.error('       node campfire-backend/manage.mjs watch');
  process.exit(2);
 }
 const commands={
@@ -24,7 +25,8 @@ const commands={
  audit:{method:'GET',path:'/v1/admin/audit',body:null},
  status:{method:'GET',path:'/v1/admin/status',body:null},
  next:{method:'GET',path:'/v1/admin/attention',body:null},
- rooms:{method:'GET',path:'/v1/admin/circles',body:null}
+ rooms:{method:'GET',path:'/v1/admin/circles',body:null},
+ watch:{method:'GET',path:'/v1/admin/watch-posture',body:null}
 };
 const {method,path,body}=commands[action];
 const res=await fetch(root+path,{method,headers:{
@@ -74,6 +76,16 @@ if(action==='invite'){
   console.log('   '+r.owners+' owner keys / '+r.members+' member keys (not human identity proof)');
  }
  console.log('Room IDs are internal references, not invitation keys. Do not disclose private room titles publicly.');
+}else if(action==='watch'){
+ console.log('CAMPFIRE · WATCH THE WATCHMEN');
+ console.log('Process concerns (not findings): '+out.signals);
+ console.log('Separate reviewer-key attestations: '+out.reviewerCredentialAttestations);
+ console.log('Two-key cases (not independently verified humans): '+out.signalsWithTwoCredentialAttestations);
+ console.log('Standing: '+out.standing);
+ console.log('Operator self-certification: NOT ALLOWED');
+ console.log('Real independent oversight: NOT VERIFIED');
+ console.log('Next: '+out.nextAction);
+ console.log('No private reporter identity, message or allegation details read by this command.');
 }else if(action==='status'){
  console.log('CAMPFIRE · THE FIREBOX REPORT');
  console.log('');

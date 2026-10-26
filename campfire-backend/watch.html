@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Campfire · Watch the Watchmen (Training)</title>
+<style>
+body{font:16px/1.5 system-ui,sans-serif;background:#fbf8f0;color:#19342b;max-width:48rem;margin:auto;padding:1rem}
+h1,h2{font-family:Georgia,serif}article,section{background:#fff;border:1px solid #b5c4b8;margin:1rem 0;padding:1.2rem}
+.warning{border-left:5px solid #a45e19;background:#fff1cc;padding:1rem}
+label{display:block;font-weight:bold;margin-top:.8rem}select,input{font:inherit;width:100%;padding:.8rem;margin:.3rem 0}
+button{font:inherit;font-weight:700;padding:.7rem;background:#153e31;color:white;border:0;border-radius:.3rem;margin:.5rem .3rem .4rem 0}
+button:disabled{opacity:.5}button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid #9a441d}
+output{display:block;white-space:pre-wrap;overflow-wrap:anywhere;background:#e7f0e6;padding:1rem;margin:.7rem 0}
+small{display:block}a{color:#174e37}article{overflow-wrap:anywhere}
+</style></head><body>
+<p><a href="/">← Back to Campfire</a></p><h1>Watch the Watchmen</h1>
+<p class="warning"><strong>Experimental software / fictional testing only.</strong>
+This is not a confidential abuse-reporting service, ombuds office, or emergency line.
+Do not include real survivor stories, child information, names, custody documents, or sensitive evidence. The server operator controls the database.</p>
+<p>People who coordinate help must be answerable for their decisions.
+A question is not a finding. Two member credentials are not proof of two independent adults.
+No person is punished or cleared automatically.</p>
+<output id="connection" role="status">Checking your private Campfire membership…</output>
+<section><h2>1. Raise a process question</h2>
+<p>Only a category and process area are recorded. There is deliberately no story box.</p>
+<label for="category">What sort of process question?</label>
+<select id="category"><option value="PRIVACY_BOUNDARY">Privacy boundary</option>
+<option value="UNAUTHORIZED_DISCLOSURE">Unapproved disclosure</option>
+<option value="MISREPRESENTED_HELP">Help presented as verified when it was not</option>
+<option value="COERCION_OR_RETALIATION">Pressure or retaliation risk</option>
+<option value="UNSAFE_STEWARDSHIP">Stewardship safety</option>
+<option value="OTHER_PROCESS_CONCERN">Other process concern</option></select>
+<label for="scope">Which kind of role or process?</label>
+<select id="scope"><option value="SYSTEM_OPERATOR">Computer/server operator</option>
+<option value="CIRCLE_OWNER">Campfire owner</option>
+<option value="MEMBER_STEWARDSHIP">Member stewardship</option>
+<option value="SOFTWARE_PROCESS">Software process</option></select>
+<button id="raise" disabled>Keep a private receipt</button><output id="receipt" role="status">No signal submitted.</output>
+</section>
+<section><h2>2. Your private signals</h2><p>Only the credential that filed the signal can retrieve its record here.</p>
+<div id="list"></div><button id="reload" disabled>Refresh my signals</button>
+<output id="share" role="status">No invitation issued.</output>
+</section>
+<section><h2>3. Review someone else's process question</h2>
+<p>Only an adult member invited voluntarily by the reporter should participate.
+Read the limited category and scope before choosing. Acknowledgement is not a verdict.</p>
+<label for="code">One-use private review invitation</label>
+<input id="code" type="password" autocomplete="off" spellcheck="false">
+<button id="preview" disabled>Preview the category</button>
+<output id="previewResult" role="status">No invitation inspected.</output>
+<button id="ack" disabled>Acknowledge for outside follow-up</button>
+</section>
+<p><small>There is no dismissal endpoint or automatic publication. Local receipts are not externally signed or tamper-proof. A real independent human oversight process remains necessary.</small></p>
+<script>
+const $=id=>document.getElementById(id);
+const token=sessionStorage.getItem('campfire-token');
+let person=null,selectedCode=null;
+const note=(id,s)=>$(id).textContent=String(s);
+async function api(path,method='GET',body){
+ const response=await fetch(path,{method,headers:{Authorization:'Bearer '+token,
+  ...(body===undefined?{}:{'Content-Type':'application/json'})},
+  body:body===undefined?undefined:JSON.stringify(body),cache:'no-store'});
+ const data=await response.json();
+ if(!response.ok||!data.ok)throw Error(data.error||'REQUEST_NOT_COMPLETED');
+ return data;
+}
+async function refresh(){
+ const r=await api('/v1/circles/'+person.circleId+'/watch');
+ const list=$('list');list.replaceChildren();
+ if(!r.signals.length)list.append(document.createTextNode('No process questions recorded by this credential.'));
+ for(const s of r.signals){
+  const box=document.createElement('article'),heading=document.createElement('strong');
+  heading.textContent=s.category+' · '+s.subjectScope;box.append(heading);
+  const status=document.createElement('p');
+  status.textContent='Still unresolved · '+s.reviewerCredentials+' reviewer credential acknowledgements (not verified people).';
+  box.append(status);
+  const btn=document.createElement('button');
+  btn.textContent='Create a private one-use reviewer invitation';
+  btn.onclick=async()=>{try{
+   const v=await api('/v1/watch/'+s.id+'/review-invites','POST',{});
+   note('share','PRIVATE one-use invitation; share only with a willing adult member:\n'+v.inviteCode+
+     '\nExpires: '+v.expiresAt+'\nNever publish or paste into a public forum.');
+  }catch(error){note('share',error.message)}};
+  box.append(btn);list.append(box);
+ }
+}
+async function start(){
+ if(!token){note('connection','Open the Campfire first using your own invitation, then return here.');return}
+ try{
+  person=await api('/v1/me');
+  note('connection','Connected to this circle using your private member capability. This does not verify a real-world identity.');
+  for(const id of ['raise','reload','preview'])$(id).disabled=false;
+  await refresh();
+ }catch(error){note('connection','No active membership on this device. Return to Campfire to sign in. '+error.message)}
+}
+$('raise').onclick=async()=>{
+ try{
+  const response=await api('/v1/circles/'+person.circleId+'/watch','POST',{
+   category:$('category').value,subjectScope:$('scope').value,requestId:crypto.randomUUID()});
+  note('receipt','PRIVATE LOCAL RECEIPT (save separately):\n'+response.signal.id+
+    '\nHash: '+response.signal.receiptHash+
+    '\nUnresolved · no independent witness or external timestamp.');
+  await refresh();
+ }catch(error){note('receipt',error.message)}
+};
+$('reload').onclick=()=>refresh().catch(error=>note('connection',error.message));
+$('preview').onclick=async()=>{
+ selectedCode=null;$('ack').disabled=true;
+ try{
+  const code=$('code').value.trim();
+  const p=await api('/v1/watch/preview','POST',{inviteCode:code});
+  selectedCode=code;
+  note('previewResult','Category: '+p.category+'\nScope: '+p.subjectScope+
+   '\nThis is not evidence of wrongdoing. You can decline to participate.');
+  $('ack').disabled=false;
+ }catch(error){note('previewResult',error.message)}
+};
+$('ack').onclick=async()=>{if(!selectedCode)return;
+ try{
+  const r=await api('/v1/watch/review','POST',{
+   inviteCode:selectedCode,stance:'ACKNOWLEDGED_FOR_ESCALATION'});
+  note('previewResult','Acknowledged for independent human follow-up. '+r.credentialAttestations+
+   ' credentials have acknowledged. The concern remains unresolved.');
+  selectedCode=null;$('code').value='';$('ack').disabled=true;
+  await refresh();
+ }catch(error){note('previewResult',error.message)}
+};
+start();
+</script></body></html>

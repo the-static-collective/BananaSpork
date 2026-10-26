@@ -10,6 +10,7 @@ import {mkdirSync,chmodSync,readFileSync} from 'node:fs';
 import {resolve,dirname} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {buildAttention} from './attention.mjs';
+import {parseWatchSubmission,parseReviewStance,watchPosture} from './watch-policy.mjs';
 
 const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const sha=x=>createHash('sha256').update(x).digest('hex');
@@ -43,6 +44,10 @@ const ddl=[
  "CREATE TABLE IF NOT EXISTS needs(id TEXT PRIMARY KEY,circle_id TEXT NOT NULL REFERENCES circles(id),owner_id TEXT NOT NULL REFERENCES actors(id),description TEXT NOT NULL,unit TEXT NOT NULL,requested INTEGER NOT NULL CHECK(requested>0),created_at TEXT NOT NULL)",
  "CREATE TABLE IF NOT EXISTS reports(id TEXT PRIMARY KEY,need_id TEXT NOT NULL REFERENCES needs(id),helper_id TEXT NOT NULL REFERENCES actors(id),units INTEGER NOT NULL CHECK(units>0),request_id TEXT NOT NULL UNIQUE,created_at TEXT NOT NULL)",
  "CREATE TABLE IF NOT EXISTS confirmations(id TEXT PRIMARY KEY,report_id TEXT NOT NULL REFERENCES reports(id),owner_id TEXT NOT NULL REFERENCES actors(id),units INTEGER NOT NULL CHECK(units>0),request_id TEXT NOT NULL UNIQUE,created_at TEXT NOT NULL)",
+ "CREATE TABLE IF NOT EXISTS watch_signals(id TEXT PRIMARY KEY,circle_id TEXT NOT NULL REFERENCES circles(id),reporter_id TEXT NOT NULL REFERENCES actors(id),category TEXT NOT NULL,subject_scope TEXT NOT NULL,request_id TEXT NOT NULL UNIQUE,receipt_hash TEXT NOT NULL,created_at TEXT NOT NULL)",
+ "CREATE INDEX IF NOT EXISTS watch_by_reporter ON watch_signals(circle_id,reporter_id,created_at)",
+ "CREATE TABLE IF NOT EXISTS watch_invites(token_hash TEXT PRIMARY KEY,signal_id TEXT NOT NULL REFERENCES watch_signals(id),expires_at INTEGER NOT NULL,used_at INTEGER)",
+ "CREATE TABLE IF NOT EXISTS watch_attestations(id TEXT PRIMARY KEY,signal_id TEXT NOT NULL REFERENCES watch_signals(id),reviewer_id TEXT NOT NULL REFERENCES actors(id),stance TEXT NOT NULL,created_at TEXT NOT NULL,UNIQUE(signal_id,reviewer_id))",
  "CREATE TABLE IF NOT EXISTS audit(seq INTEGER PRIMARY KEY AUTOINCREMENT,circle_id TEXT NOT NULL,kind TEXT NOT NULL,event_data TEXT NOT NULL,prev_hash TEXT NOT NULL,event_hash TEXT NOT NULL,created_at TEXT NOT NULL)"
 ].join(';\n')+';';
 function send(res,status,payload){
@@ -153,6 +158,13 @@ export function createCampfireBackend({dbPath,bootstrapKey,allowOrigin=null}={})
      'Content-Security-Policy':"default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; connect-src 'self'; base-uri 'none'; frame-ancestors 'none'"});
     return res.end(html);
    }
+   if(path==='/watch'&&req.method==='GET'){
+    const html=readFileSync(new URL('./watch.html',import.meta.url),'utf8');
+    res.writeHead(200,{'Content-Type':'text/html; charset=utf-8','Cache-Control':'no-store',
+      'Referrer-Policy':'no-referrer','X-Content-Type-Options':'nosniff','X-Frame-Options':'DENY',
+      'Content-Security-Policy':"default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; connect-src 'self'; base-uri 'none'; frame-ancestors 'none'"});
+    return res.end(html);
+   }
    if(path==='/'&&req.method==='GET'){
     const html=readFileSync(new URL('./index.html',import.meta.url),'utf8');
     res.writeHead(200,{'Content-Type':'text/html; charset=utf-8','Cache-Control':'no-store',
@@ -233,6 +245,7 @@ export function createCampfireBackend({dbPath,bootstrapKey,allowOrigin=null}={})
       activeMembers:db.prepare('SELECT COUNT(*) AS n FROM actors WHERE revoked_at IS NULL').get().n,
       messages:count('messages'),needs:count('needs'),
       reports:count('reports'),ownerAcceptances:count('confirmations'),
+      watchSignals:count('watch_signals'),
       unredeemedInvitations:db.prepare('SELECT COUNT(*) AS n FROM invites WHERE used_at IS NULL AND expires_at>=?').get(Date.now()).n,
       expiredInvitations:expired
      },
@@ -271,8 +284,127 @@ export function createCampfireBackend({dbPath,bootstrapKey,allowOrigin=null}={})
     return send(res,200,buildAttention({counts,circles:groups,audit:verifyAudit(),
       backupVerified:false}));
    }
+   if(path==='/v1/admin/watch-posture'&&req.method==='GET'){
+    admin(req);
+    const signals=db.prepare('SELECT COUNT(*) AS n FROM watch_signals').get().n;
+    const attestations=db.prepare('SELECT COUNT(*) AS n FROM watch_attestations').get().n;
+    const twoKeySignals=db.prepare(`SELECT COUNT(*) AS n FROM (
+      SELECT signal_id FROM watch_attestations GROUP BY signal_id HAVING COUNT(DISTINCT reviewer_id)>=2
+    )`).get().n;
+    return send(res,200,{ok:true,...watchPosture({
+      auditOk:verifyAudit().ok,signals,attestations,twoKeySignals
+    })});
+   }
    if(path==='/v1/admin/audit'&&req.method==='GET'){
     admin(req);return send(res,200,{ok:true,audit:verifyAudit()});
+   }
+   // A member may raise a small categorical concern about the *process*.
+   // No free text or case details are accepted, including names and child data.
+   // Owner and admin may not erase or close these tickets through this API.
+   match=path.match(/^\/v1\/circles\/([0-9a-f-]+)\/watch$/);
+   if(match){
+    const c=circle(match[1]),a=actor(req,c);
+    if(req.method==='GET'){
+      const rows=db.prepare(`SELECT s.id,s.category,s.subject_scope,s.receipt_hash,s.created_at,
+        (SELECT COUNT(*) FROM watch_attestations w WHERE w.signal_id=s.id) AS review_count
+        FROM watch_signals s WHERE s.circle_id=? AND s.reporter_id=?
+        ORDER BY s.created_at DESC,s.id DESC LIMIT 30`).all(c,a.id);
+      return send(res,200,{ok:true,signals:rows.map(row=>({
+        id:row.id,category:row.category,subjectScope:row.subject_scope,
+        receiptHash:row.receipt_hash,createdAt:row.created_at,reviewerCredentials:row.review_count,
+        standing:'UNRESOLVED_NO_AUTO_SANCTION'
+      })),visibility:'REPORTER_CREDENTIAL_ONLY',truth:'NOT_AN_ALLEGATION_FINDING'});
+    }
+    if(req.method==='POST'){
+      let b;
+      try { b=parseWatchSubmission(await body(req)); }
+      catch(e){if(e.status)throw e;error('INVALID_WATCH_SIGNAL');}
+      const requestId=id(b.requestId);
+      const ticket=txn(()=>{
+        const prior=db.prepare('SELECT * FROM watch_signals WHERE request_id=?').get(requestId);
+        if(prior){
+          if(prior.circle_id!==c||prior.reporter_id!==a.id||
+             prior.category!==b.category||prior.subject_scope!==b.subjectScope)
+            error('WATCH_IDEMPOTENCY_CONFLICT',409);
+          return {id:prior.id,category:prior.category,subjectScope:prior.subject_scope,
+            createdAt:prior.created_at,receiptHash:prior.receipt_hash,duplicate:true};
+        }
+        const since=new Date(Date.now()-86400000).toISOString();
+        const count=db.prepare('SELECT COUNT(*) AS n FROM watch_signals WHERE reporter_id=? AND created_at>=?').get(a.id,since).n;
+        if(count>=3)error('WATCH_RATE_LIMITED',429);
+        const signalId=randomUUID(),createdAt=now();
+        // A stable private receipt, not an external signature or independent timestamp.
+        const receiptHash=sha('WATCH-SIGNAL-001|'+signalId+'|'+c+'|'+a.id+'|'+b.category+'|'+b.subjectScope+'|'+createdAt);
+        db.prepare('INSERT INTO watch_signals VALUES(?,?,?,?,?,?,?,?)')
+          .run(signalId,c,a.id,b.category,b.subjectScope,requestId,receiptHash,createdAt);
+        audit(c,'watch.signal.opened',{signalId,receiptHash});
+        return {id:signalId,category:b.category,subjectScope:b.subjectScope,createdAt,receiptHash,duplicate:false};
+      });
+      return send(res,201,{ok:true,signal:ticket,standing:'UNRESOLVED_NO_AUTO_SANCTION',
+        safety:'REPORTER_PRIVATE_CATEGORY_ONLY',independentHumanReview:false,
+        warning:'Keep this receipt privately. This is not a finding, external witness, or tamper-proof proof.'});
+    }
+   }
+   match=path.match(/^\/v1\/watch\/([0-9a-f-]+)\/review-invites$/);
+   if(match&&req.method==='POST'){
+    const signalId=id(match[1]);
+    const sig=db.prepare('SELECT * FROM watch_signals WHERE id=?').get(signalId);
+    if(!sig)error('NOT_FOUND',404);
+    const a=actor(req,sig.circle_id);
+    if(a.id!==sig.reporter_id)error('REPORTER_ONLY',403);
+    const b=await body(req);
+    if(Object.keys(b).length!==0)error('EMPTY_BODY_ONLY');
+    const invite=txn(()=>{
+      const count=db.prepare('SELECT COUNT(*) AS n FROM watch_invites WHERE signal_id=?').get(signalId).n;
+      if(count>=2)error('REVIEW_INVITE_LIMIT',409);
+      const raw=token(),expiresAt=Date.now()+60*60000;
+      db.prepare('INSERT INTO watch_invites VALUES(?,?,?,NULL)').run(sha(raw),signalId,expiresAt);
+      audit(sig.circle_id,'watch.review.invite_issued',{signalId});
+      return {inviteCode:raw,expiresAt:new Date(expiresAt).toISOString()};
+    });
+    return send(res,201,{ok:true,...invite,warning:'PRIVATE_ONE_USE_CODE. SHARE ONLY WITH AN INDEPENDENT WILLING ADULT MEMBER. NO HUMAN INDEPENDENCE VERIFIED.'});
+   }
+   if(path==='/v1/watch/preview'&&req.method==='POST'){
+    const a=actor(req),b=await body(req);
+    if(Object.keys(b).length!==1||typeof b.inviteCode!=='string')
+      error('INVALID_REVIEW_PREVIEW');
+    const invite=db.prepare('SELECT * FROM watch_invites WHERE token_hash=?').get(sha(b.inviteCode));
+    if(!invite||invite.used_at||invite.expires_at<Date.now())
+      error('REVIEW_INVITE_INVALID_OR_USED',403);
+    const sig=db.prepare('SELECT * FROM watch_signals WHERE id=?').get(invite.signal_id);
+    if(!sig||sig.circle_id!==a.circle_id||sig.reporter_id===a.id||a.role!=='member')
+      error('REVIEW_SCOPE_DENIED',403);
+    return send(res,200,{ok:true,category:sig.category,subjectScope:sig.subject_scope,
+      availableStances:['ACKNOWLEDGED_FOR_ESCALATION','INDEPENDENT_REVIEW_NEEDED'],
+      standing:'CATEGORICAL_REQUEST_ONLY_NOT_EVIDENCE',
+      independentHumanVerification:false,noFindingOfFault:true,noAutomaticAction:true});
+   }
+   if(path==='/v1/watch/review'&&req.method==='POST'){
+    const a=actor(req);
+    let b;
+    try { b=parseReviewStance(await body(req)); }
+    catch(e){if(e.status)throw e;error('INVALID_REVIEW_SUBMISSION');}
+    if(!/^[-\w]{43,}$/.test(b.inviteCode))error('INVALID_INVITE');
+    const result=txn(()=>{
+      const invite=db.prepare('SELECT * FROM watch_invites WHERE token_hash=?').get(sha(b.inviteCode));
+      if(!invite||invite.used_at||invite.expires_at<Date.now())
+        error('REVIEW_INVITE_INVALID_OR_USED',403);
+      const sig=db.prepare('SELECT * FROM watch_signals WHERE id=?').get(invite.signal_id);
+      if(!sig||sig.circle_id!==a.circle_id)error('REVIEW_SCOPE_DENIED',403);
+      if(a.id===sig.reporter_id||a.role!=='member')
+        error('REVIEW_CONFLICT_OR_ROLE',403);
+      if(db.prepare('SELECT 1 AS n FROM watch_attestations WHERE signal_id=? AND reviewer_id=?').get(sig.id,a.id))
+        error('REVIEWER_ALREADY_ATTESTED',409);
+      const reviewId=randomUUID();
+      db.prepare('INSERT INTO watch_attestations VALUES(?,?,?,?,?)')
+        .run(reviewId,sig.id,a.id,b.stance,now());
+      db.prepare('UPDATE watch_invites SET used_at=? WHERE token_hash=?').run(Date.now(),sha(b.inviteCode));
+      audit(sig.circle_id,'watch.review.attested',{signalId:sig.id,reviewId,stance:b.stance});
+      return {signalId:sig.id,reviewId,credentialAttestations:
+        db.prepare('SELECT COUNT(*) AS n FROM watch_attestations WHERE signal_id=?').get(sig.id).n};
+    });
+    return send(res,201,{ok:true,...result,standing:'REVIEW_ATTENDANCE_NOT_FINDING',
+      independentHumanVerified:false,complaintResolved:false,noAutomaticSanction:true});
    }
    match=path.match(/^\/v1\/circles\/([0-9a-f-]+)\/messages$/);
    if(match){
