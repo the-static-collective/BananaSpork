@@ -1,0 +1,9 @@
+coc_area,hud_2025_total,hud_2025_unsheltered,per_10000_approx,metric_scope,pilot_status,operator_status,notes
+"New York City CoC",125683,4673,,"2025 HUD PIT","adaptation","NOT CONTACTED","Shelter and Pathway Home navigation; no new unscreened host matching"
+"Los Angeles City and County CoC",67777,44415,,"2025 HUD PIT","wave_A_discovery","NOT CONTACTED","Large metro; largest unsheltered number in candidate set"
+"Seattle/King County CoC",16936,9810,,"2025 HUD PIT","wave_B_reconnaissance","NOT CONTACTED","Check 2026 CoC operator transitions before outreach"
+"Portland/Gresham/Multnomah County CoC",10526,6912,,"2025 HUD PIT","adaptation","NOT CONTACTED","Work with established referral and street services"
+"Humboldt County CoC",1489,,110.6,"2025 HUD PIT plus ACS derived approximate rate","wave_A_discovery","NOT CONTACTED","Largely rural; rate is a screening signal and may undercount"
+"Central Oregon CoC",2108,,90.5,"2025 HUD PIT plus ACS derived approximate rate","wave_B_reconnaissance","NOT CONTACTED","Largely rural; rate is a screening signal"
+"Monroe County CoC FL",378,,116.6,"2025 HUD PIT plus ACS derived approximate rate","discovery_only","NOT CONTACTED","Small denominator and geographic barriers"
+"Waseca MN field rehearsal",,,, "local synthetic test only","readiness","NOT CONTACTED","No count or shelter capacity asserted"
