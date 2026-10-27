@@ -32,6 +32,7 @@ function mailtoHref(email: string, subject: string, body: string): string {
 }
 
 export function PartnerDesk() {
+  const standaloneLanding = import.meta.env.VITE_PORCHLIGHT_LANDING === 'true';
   const [region, setRegion] = useState<Region>('all');
   const [orders, setOrders] = useState<TrialWorkOrder[]>(() => DEMO_WORK_ORDERS.map((item) => ({
     ...item, gates: { ...item.gates }, receipts: [],
@@ -72,8 +73,8 @@ export function PartnerDesk() {
     <div className="min-h-screen w-full bg-[#f8f5ec] text-stone-900 selection:bg-amber-200">
       <header className="border-b border-stone-200 bg-white/90 px-4 py-3 sm:px-8">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3">
-          <a href="#garden" className="inline-flex min-h-[44px] items-center gap-2 text-sm font-bold text-stone-700 hover:text-amber-800">
-            <ArrowLeft size={18} /> The Garden
+          <a href={standaloneLanding ? 'https://abundent.org/' : '#garden'} className="inline-flex min-h-[44px] items-center gap-2 text-sm font-bold text-stone-700 hover:text-amber-800">
+            <ArrowLeft size={18} /> {standaloneLanding ? 'Abundent' : 'The Garden'}
           </a>
           <div className="inline-flex items-center gap-2 font-black tracking-tight text-amber-950">
             <House className="text-amber-700" size={23} />
