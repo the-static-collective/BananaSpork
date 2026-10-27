@@ -100,6 +100,21 @@ export const TodayView: React.FC<TodayViewProps> = ({
         </button>
       </div>
 
+      {/* Porchlight is an explicitly separate research/simulation space, not Campfire authority. */}
+      <a
+        href="#porchlight"
+        className="flex flex-col gap-2 rounded-2xl border border-emerald-300 bg-emerald-50 px-4 py-3 text-emerald-950 shadow-sm transition hover:bg-emerald-100 sm:flex-row sm:items-center sm:justify-between"
+      >
+        <div>
+          <p className="text-xs font-black uppercase tracking-wider">Porchlight · Partner Desk</p>
+          <p className="mt-1 text-sm">Find a local partner, draft an introduction, and test a permissioned help receipt with synthetic data.</p>
+          <p className="mt-1 text-[11px] text-emerald-800">Pilot proposal only · No live placements or partner agreements</p>
+        </div>
+        <span className="shrink-0 rounded-xl bg-emerald-800 px-4 py-2.5 text-center text-sm font-extrabold text-white">
+          Open Desk →
+        </span>
+      </a>
+
       {/* THREE CORE QUESTIONS GRID */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
         {/* PANEL 1: WHAT NEEDS ATTENTION? */}
