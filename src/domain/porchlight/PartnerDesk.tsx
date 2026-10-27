@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   ArrowLeft, ArrowRight, CheckCircle2, CircleHelp, ClipboardCheck, ExternalLink,
   HandHeart, House, LockKeyhole, Mail, MapPin, RefreshCw, ShieldCheck,
@@ -33,6 +33,11 @@ function mailtoHref(email: string, subject: string, body: string): string {
 
 export function PartnerDesk() {
   const standaloneLanding = import.meta.env.VITE_PORCHLIGHT_LANDING === 'true';
+  useEffect(() => {
+    const priorTitle = document.title;
+    document.title = 'Porchlight Partner Desk · The Static Collective';
+    return () => { document.title = priorTitle; };
+  }, []);
   const [region, setRegion] = useState<Region>('all');
   const [orders, setOrders] = useState<TrialWorkOrder[]>(() => DEMO_WORK_ORDERS.map((item) => ({
     ...item, gates: { ...item.gates }, receipts: [],
@@ -259,7 +264,7 @@ export function PartnerDesk() {
             {[
               { label: 'Awaiting receipt', value: counts.reported },
               { label: 'Receiver-confirmed', value: counts.confirmed },
-              { label: 'Refused / held', value: counts.refused },
+              { label: 'Refused', value: counts.refused },
             ].map(({ label, value }) => (
               <div key={label} className="rounded-2xl border border-stone-200 bg-white px-5 py-4">
                 <span className="text-xs font-bold text-stone-600">{label}</span>
@@ -356,7 +361,7 @@ export function PartnerDesk() {
               className={`${btn} bg-amber-900 text-white hover:bg-amber-800`}>
               Open the actual work queue <ExternalLink size={16} />
             </a>
-            <a href="https://github.com/the-static-collective/BananaSpork/blob/pilot/porchlight-001-national-field/docs/proposals/porchlight-001-partnership-onramp.md"
+            <a href="https://github.com/the-static-collective/BananaSpork/blob/main/docs/proposals/porchlight-001-partnership-onramp.md"
               target="_blank" rel="noopener noreferrer" className={`${btn} border border-amber-400 bg-white text-stone-900 hover:bg-amber-50`}>
               Read the partner playbook <ArrowRight size={16} />
             </a>
