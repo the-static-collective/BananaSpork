@@ -2,6 +2,14 @@
 
 # NanaSpork / BananaGram
 
+## Porchlight Partner Desk (research + synthetic demonstration)
+
+**New experimental front door:** open `#porchlight` in the NanaSpork web/Capacitor client, or select **Porchlight · Partner Desk** from Garden Today.
+
+The Partner Desk displays researched **public** organizational entry points in Los Angeles and Humboldt, with local email-client drafts that are **never sent automatically**, plus an interactive, **memory-only synthetic** work-order rehearsal. Every demo task begins on HOLD; all four fictitious approval gates must be acknowledged before a local-operator role can approve it. Volunteer reporting cannot become receiver confirmation, refusal is terminal, and every receipt declares `SYNTHETIC_DEMO_ONLY`.
+
+This is not a live organization CRM, a guest database, coordinated entry, an active shelter, or an authorized host-home matching service. It makes **no authenticated backend mutations** and stores **no partner or participant information**. The hardening path is in [Porchlight partnership on-ramp](docs/proposals/porchlight-001-partnership-onramp.md) and [field execution issue #25](https://github.com/the-static-collective/BananaSpork/issues/25). The main Campfire Supabase authority is intentionally untouched.
+
 NanaSpork is an Android field instrument for household participation. Its Garden
 home makes lineage, unresolved needs, and available next actions legible without
 turning the underlying history into a social feed.
