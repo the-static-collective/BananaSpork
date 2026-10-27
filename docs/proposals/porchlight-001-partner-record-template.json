@@ -1,0 +1,47 @@
+{
+  "schema_version": "porchlight.partner-record.v0",
+  "purpose": "Example partner prospect record, not a live CRM",
+  "record_kind": "SYNTHETIC_TEMPLATE",
+  "organization": {
+    "name": "REPLACE WITH PUBLIC ORGANIZATION NAME",
+    "region": "REPLACE WITH COC REGION",
+    "public_url": null,
+    "public_contact_channel": null
+  },
+  "pipeline": {
+    "status": "RESEARCHED",
+    "last_contact_at": null,
+    "owner": null,
+    "next_review_at": null
+  },
+  "permission": {
+    "permission_to_contact": false,
+    "contact_status": "NOT_CONTACTED",
+    "do_not_contact": false,
+    "branding_authorized": false,
+    "data_sharing_approved": false
+  },
+  "scope": {
+    "proposed_support_type": "nonresidential-help-only",
+    "local_operator_approved": false,
+    "partner_named_safety_owner": false,
+    "lived_experience_review_complete": false,
+    "privacy_approved": false,
+    "simulation_proved": false,
+    "live_case_handling_allowed": false,
+    "residential_placement_allowed": false
+  },
+  "evidence": {
+    "source_urls": [],
+    "partner_decision_receipt": null,
+    "local_review_record_reference": null
+  },
+  "current_state": "HOLD",
+  "restrictions": [
+    "no guest names",
+    "no sensitive histories",
+    "no exact host addresses",
+    "no live matching without local operating approval"
+  ],
+  "warning": "This file is an example contract for synthetic partner prospect status; do not store personal data or private negotiation in git."
+}
