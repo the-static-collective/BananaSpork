@@ -32,6 +32,7 @@ function mailtoHref(email: string, subject: string, body: string): string {
 }
 
 export function PartnerDesk() {
+  const standaloneLanding = import.meta.env.VITE_PORCHLIGHT_LANDING === 'true';
   const [region, setRegion] = useState<Region>('all');
   const [orders, setOrders] = useState<TrialWorkOrder[]>(() => DEMO_WORK_ORDERS.map((item) => ({
     ...item, gates: { ...item.gates }, receipts: [],
@@ -72,8 +73,8 @@ export function PartnerDesk() {
     <div className="min-h-screen w-full bg-[#f8f5ec] text-stone-900 selection:bg-amber-200">
       <header className="border-b border-stone-200 bg-white/90 px-4 py-3 sm:px-8">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3">
-          <a href="#" className="inline-flex min-h-[44px] items-center gap-2 text-sm font-bold text-stone-700 hover:text-amber-800">
-            <ArrowLeft size={18} /> The Garden
+          <a href={standaloneLanding ? 'https://abundent.org/' : '#garden'} className="inline-flex min-h-[44px] items-center gap-2 text-sm font-bold text-stone-700 hover:text-amber-800">
+            <ArrowLeft size={18} /> {standaloneLanding ? 'Abundent' : 'The Garden'}
           </a>
           <div className="inline-flex items-center gap-2 font-black tracking-tight text-amber-950">
             <House className="text-amber-700" size={23} />
@@ -99,10 +100,10 @@ export function PartnerDesk() {
                 without turning them into public listings.
               </p>
               <div className="mt-6 flex flex-wrap gap-3">
-                <a href="#partner-leads" className={`${btn} bg-amber-300 text-stone-950 hover:bg-amber-200`}>
+                <a href="#porchlight-partner-leads" className={`${btn} bg-amber-300 text-stone-950 hover:bg-amber-200`}>
                   Explore partner doors <ArrowRight size={17} />
                 </a>
-                <a href="#simulation" className={`${btn} border border-white/40 bg-white/10 text-white hover:bg-white/20`}>
+                <a href="#porchlight-simulation" className={`${btn} border border-white/40 bg-white/10 text-white hover:bg-white/20`}>
                   Test the receipt loop
                 </a>
               </div>
@@ -144,7 +145,7 @@ export function PartnerDesk() {
           ))}
         </section>
 
-        <section id="partner-leads" className="space-y-5 scroll-mt-6">
+        <section id="porchlight-partner-leads" className="space-y-5 scroll-mt-6">
           <div className="flex flex-wrap items-end justify-between gap-4">
             <div>
               <p className="text-xs font-extrabold uppercase tracking-[0.2em] text-amber-800">01 / Partner discovery</p>
@@ -238,7 +239,7 @@ export function PartnerDesk() {
           </div>
         </section>
 
-        <section id="simulation" className="scroll-mt-6 space-y-5">
+        <section id="porchlight-simulation" className="scroll-mt-6 space-y-5">
           <div className="flex flex-wrap items-end justify-between gap-3">
             <div>
               <p className="text-xs font-extrabold uppercase tracking-[0.2em] text-amber-800">02 / Safety and receipts</p>
