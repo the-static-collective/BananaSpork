@@ -11,12 +11,18 @@ if (!rootElement) {
   throw new Error('BananaGram root element is missing.');
 }
 
+// The Porchlight view has in-page anchors (#porchlight-partner-leads, etc.).
+// A dedicated public Vercel build may choose it as its default landing screen.
+function wantsPorchlight(): boolean {
+  const hash = window.location.hash;
+  return hash.startsWith('#porchlight') ||
+    (import.meta.env.VITE_PORCHLIGHT_LANDING === 'true' && hash !== '#garden');
+}
+
 function RootView() {
-  const [showPorchlight, setShowPorchlight] = useState(
-    () => window.location.hash === '#porchlight'
-  );
+  const [showPorchlight, setShowPorchlight] = useState(wantsPorchlight);
   useEffect(() => {
-    const updateView = () => setShowPorchlight(window.location.hash === '#porchlight');
+    const updateView = () => setShowPorchlight(wantsPorchlight());
     window.addEventListener('hashchange', updateView);
     return () => window.removeEventListener('hashchange', updateView);
   }, []);
