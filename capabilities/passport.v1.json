@@ -1,0 +1,53 @@
+{
+  "schema": "jarvis.capability-passport/v1",
+  "repository": "the-static-collective/BananaSpork",
+  "version": "2026-11-04.1",
+  "authority": "PUBLIC_DESCRIPTION_ONLY_NOT_RUNTIME_OR_PERMISSION",
+  "availability": "NOT_OBSERVED",
+  "capabilities": [
+    {
+      "id": "garden.pocket-world",
+      "title": "Exchange a bounded claim between independent local worlds",
+      "intents": [
+        "share help",
+        "receive help",
+        "offer fish",
+        "neighbor exchange",
+        "need an item",
+        "exchange a task",
+        "share offer",
+        "help return",
+        "fork a world"
+      ],
+      "readiness": "LOCAL_APP_UNVERIFIED",
+      "delivers": "Garden contains a First Circle view for manually exchanging cards and independent dispositions; live app availability is unverified.",
+      "entry": {
+        "kind": "SOURCE_REFERENCE",
+        "href": "https://github.com/the-static-collective/BananaSpork/blob/main/docs/first-circle-garden-feature.md"
+      },
+      "sourcePath": "docs/first-circle-garden-feature.md",
+      "requires": "No verified identity, automatic matching, delivery, or live cross-device service."
+    },
+    {
+      "id": "garden.food-access",
+      "title": "Explore community food access work",
+      "intents": [
+        "grocery",
+        "food co-op",
+        "community grocery",
+        "food shelf",
+        "farm sellers",
+        "local food",
+        "waseca food"
+      ],
+      "readiness": "RESEARCH_ONLY",
+      "delivers": "Garden research explores member-driven food access and producer-direct pilots; not an operating service.",
+      "entry": {
+        "kind": "SOURCE_REFERENCE",
+        "href": "https://github.com/the-static-collective/BananaSpork/blob/main/docs/proposals/porchlight-001-partnership-onramp.md"
+      },
+      "sourcePath": "docs/proposals/porchlight-001-partnership-onramp.md",
+      "requires": "No cooperative membership, vendor participation or food availability is established."
+    }
+  ]
+}
