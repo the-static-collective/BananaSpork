@@ -100,6 +100,22 @@ export const TodayView: React.FC<TodayViewProps> = ({
         </button>
       </div>
 
+      {/* First Circle is an independent offline instrument, not Campfire or Jubilee authority. */}
+      <a
+        href="#first-circle"
+        id="garden-open-first-circle"
+        className="flex flex-col gap-2 rounded-2xl border border-teal-300 bg-teal-50 px-4 py-3 text-teal-950 shadow-sm transition hover:bg-teal-100 sm:flex-row sm:items-center sm:justify-between"
+      >
+        <div>
+          <p className="text-xs font-black uppercase tracking-wider">First Circle · Pocket Worlds</p>
+          <p className="mt-1 text-sm">Make a need or offer, explicitly release it, share it with someone, and let their world decide independently.</p>
+          <p className="mt-1 text-[11px] text-teal-800">Device-local experiment · No automatic sync, payments, identity proof or shared Campfire write</p>
+        </div>
+        <span className="shrink-0 rounded-xl bg-teal-900 px-4 py-2.5 text-center text-sm font-extrabold text-white">
+          Open First Circle →
+        </span>
+      </a>
+
       {/* Porchlight is an explicitly separate research/simulation space, not Campfire authority. */}
       <a
         href="#porchlight"
