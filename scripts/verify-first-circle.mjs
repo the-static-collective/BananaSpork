@@ -49,9 +49,9 @@ const garden = fs.readFileSync(new URL('../src/domain/campfire/TodayView.tsx', i
 assert.ok(garden.includes('href="#first-circle"'), 'Garden must expose the feature');
 
 /* CONSEQUENCE-001: independent local reports and decisions, not verified external deeds. */
-const workPart=html.match(/<script id="first-circle-consequence">([\\s\\S]*?)<\\/script>/);
+const workPart=html.split('<script id="first-circle-consequence">')[1]?.split('</script>')[0];
 assert.ok(workPart,'Embedded consequence core not found');
-vm.runInNewContext(workPart[1].split('/* UI. Manual')[0],context);
+vm.runInNewContext(workPart.split('/* UI. Manual')[0],context);
 const K=context.FC_WORK;
 const helper={id:'world-'+'c'.repeat(24),name:'Helper',created:'test',parent:null};
 const helperClaim=F.derive(W,log).cards[0].claim;
