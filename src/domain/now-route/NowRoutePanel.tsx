@@ -1,5 +1,5 @@
 import React, {useCallback,useEffect,useMemo,useState} from 'react';
-import {areaCoordinates, type NowOffer, type NowNeed} from './matching';
+import {type NowOffer, type NowNeed} from './matching';
 import {
   createSupabaseNowRouteTransport,nowRouteSuggestions,
 } from './supabaseTransport';
@@ -48,7 +48,7 @@ export function NowRoutePanel({circleId,userId}:{circleId:string;userId:string})
     finally{setLoading(false);}
   }
   const zone=AREAS[area];
-  const center=areaCoordinates(zone.lat,zone.lon);
+  const center={lat:zone.lat,lon:zone.lon};
 
   return <section className="rounded-2xl border-2 border-emerald-300 bg-emerald-50 px-4 py-4 text-emerald-950 space-y-4" aria-label="Now Route pilot">
     <div>
