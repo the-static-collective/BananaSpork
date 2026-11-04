@@ -38,6 +38,7 @@ import { apiJson } from './lib/api';
 import { useCampfireSession } from './integrations/supabase/useCampfireSession';
 import { useSharedConversation } from './domain/conversation/useSharedConversation';
 import { HelpSlipInbox } from './domain/help-slip/HelpSlipInbox';
+import { NowRoutePanel } from './domain/now-route/NowRoutePanel';
 import { HelpSlipHoldStore, type HelpSlipHoldResult } from './domain/help-slip/holdStore';
 import {
   pourHeldRequirement,
@@ -793,6 +794,16 @@ export default function App() {
             connectionPanel={
               <div className="space-y-2">
                 <CampfireConnectionPanel connection={campfireConnection} />
+                {import.meta.env.VITE_NOW_ROUTE_STAGING === '1' &&
+                  campfireConnection.status === 'ready' &&
+                  campfireConnection.activeCircleId &&
+                  campfireConnection.session?.user.id && (
+                    <NowRoutePanel
+                      key={campfireConnection.activeCircleId + ':' + campfireConnection.session.user.id}
+                      circleId={campfireConnection.activeCircleId}
+                      userId={campfireConnection.session.user.id}
+                    />
+                  )}
                 {(refreshingCampfire || refreshError || actionNotice) && (
                   <div
                     className={`rounded-xl border px-3 py-2 text-[11px] font-semibold ${
