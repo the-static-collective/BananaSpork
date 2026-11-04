@@ -38,7 +38,7 @@ export function FirstCircleFeature() {
         title="First Circle — create, share, receive, decide and fork an offline world"
         src="./first-circle.html"
         className="min-h-0 w-full flex-1 border-0"
-        allow="clipboard-write"
+        allow="clipboard-write; web-share"
         id="first-circle-instrument"
       />
     </div>
