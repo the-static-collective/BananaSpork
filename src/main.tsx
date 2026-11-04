@@ -2,6 +2,7 @@ import {StrictMode, useEffect, useState} from 'react';
 import {createRoot} from 'react-dom/client';
 import App from './App.tsx';
 import { PartnerDesk } from './domain/porchlight/PartnerDesk.tsx';
+import { FirstCircleFeature } from './domain/first-circle/FirstCircleFeature.tsx';
 import { ErrorBoundary } from './components/ErrorBoundary.tsx';
 import './index.css';
 
@@ -19,13 +20,25 @@ function wantsPorchlight(): boolean {
     (import.meta.env.VITE_PORCHLIGHT_LANDING === 'true' && hash !== '#garden');
 }
 
+function wantsFirstCircle(): boolean {
+  const hash = window.location.hash;
+  return hash === '#first-circle' || hash.startsWith('#first-circle/');
+}
+
 function RootView() {
   const [showPorchlight, setShowPorchlight] = useState(wantsPorchlight);
+  const [showFirstCircle, setShowFirstCircle] = useState(wantsFirstCircle);
+
   useEffect(() => {
-    const updateView = () => setShowPorchlight(wantsPorchlight());
+    const updateView = () => {
+      setShowPorchlight(wantsPorchlight());
+      setShowFirstCircle(wantsFirstCircle());
+    };
     window.addEventListener('hashchange', updateView);
     return () => window.removeEventListener('hashchange', updateView);
   }, []);
+
+  if (showFirstCircle) return <FirstCircleFeature />;
   return showPorchlight ? <PartnerDesk /> : <App />;
 }
 
