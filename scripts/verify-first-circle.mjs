@@ -42,6 +42,7 @@ assert.equal(paradox.c.cards[0].status,'REFUSE');
 assert.notEqual(paradox.b.stateHash,paradox.c.stateHash);
 assert.ok(html.includes('id="boot-data"'));
 assert.ok(html.includes('SHARE WITH SOMEONE →'), 'Native share or copy action is visible for released claims');
+assert.ok(html.includes("'card-list','proof-feedback'"), 'Child export must scrub rendered private cards from HTML');
 const appRoot = fs.readFileSync(new URL('../src/main.tsx', import.meta.url), 'utf8');
 assert.ok(appRoot.includes('wantsFirstCircle'), 'The application must route to First Circle');
 const garden = fs.readFileSync(new URL('../src/domain/campfire/TodayView.tsx', import.meta.url), 'utf8');
